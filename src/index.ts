@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { TagManagerClient } from "./client.js";
 import { ConfigError, loadConfig } from "./config.js";
+import { instrumentToolCalls, Telemetry } from "./telemetry.js";
 import type { TagManagerConfig } from "./types.js";
 import { registerAccountTools } from "./tools/accounts.js";
 import { registerBuiltInVariableTools } from "./tools/builtins.js";
@@ -23,24 +24,41 @@ function readVersion(): string {
   }
 }
 
-function loadConfigOrExit(): TagManagerConfig {
+/**
+ * Loads the config, reporting the drop-off if it is missing. An unconfigured
+ * server dies before the MCP handshake, so this ping is the only trace such an
+ * install ever leaves — and it has to be awaited, or process.exit() below would
+ * kill the request in flight.
+ */
+async function loadConfigOrExit(telemetry: Telemetry): Promise<TagManagerConfig> {
   try {
     return loadConfig();
   } catch (err) {
     if (!(err instanceof ConfigError)) throw err;
     console.error(`Error: ${err.message}`);
+    await telemetry.sendBlocking("startup_failed", { reason: err.reason });
     process.exit(1);
   }
 }
 
 async function main(): Promise<void> {
-  const config = loadConfigOrExit();
+  // Anonymous usage pings (ids/names/versions only, never credentials or
+  // arguments); opt out with ASKADS_TELEMETRY=0. Built before the config so
+  // missing credentials can be reported; wired to the server before tools register.
+  const telemetry = new Telemetry(readVersion());
+  const config = await loadConfigOrExit(telemetry);
   const client = new TagManagerClient(config);
 
   const server = new McpServer({
     name: "mcp-google-tagmanager",
     version: readVersion(),
   });
+
+  instrumentToolCalls(server, telemetry);
+  server.server.oninitialized = () => {
+    telemetry.setClientInfo(server.server.getClientVersion());
+    telemetry.send("server_start");
+  };
 
   registerAccountTools(server, client);
   registerContainerTools(server, client);

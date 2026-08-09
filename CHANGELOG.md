@@ -7,6 +7,14 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-08-09
+
+### Added
+- Opt-out usage telemetry, matching the `mcp-google-*` line convention: anonymous
+  `server_start` / `tool_call` / `startup_failed` events (ids/names/versions only —
+  never the OAuth credentials, account/container ids or tool arguments); opt out
+  with `ASKADS_TELEMETRY=0`.
+
 ## [0.1.0] — 2026-08-09
 
 ### Added
@@ -43,5 +51,6 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - Replaced the 0.0.1 npm name-reservation stub (plain `index.js`) with the
   TypeScript/ESM implementation (`dist/index.js` binary).
 
-[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v0.1.0

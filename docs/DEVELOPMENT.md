@@ -43,6 +43,20 @@ test/dist-smoke.test.js     # real MCP handshake with dist/index.js over stdio
 - `test/dist-smoke.test.js` — spawns the built binary, performs a real MCP
   handshake over stdio via the SDK client, and checks the advertised tool list.
 
+## Usage telemetry
+
+The server sends anonymous events to `usage.gistrec.cloud` (`server_start` when a
+client connects and `tool_call` with the tool **name**) to count active installs
+and tool demand. An event carries only de-identified technical fields: a random
+installation id (`~/.config/mcp-google-tagmanager/instance-id`), the package
+version, the AI client's name and version from the MCP handshake, the Node.js
+version and the OS.
+
+The OAuth credentials, account/container ids and paths, tool arguments and
+prompts are never sent or stored (implementation: `src/telemetry.ts`). Sends run
+in the background with a 2-second cap and are silently skipped on any error. Opt
+out for every MCP server by this author at once: `ASKADS_TELEMETRY=0`.
+
 ## Refreshing the built-in variable enum
 
 `src/builtin-variable-types.ts` is generated from

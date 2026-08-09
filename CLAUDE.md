@@ -15,7 +15,8 @@ Auth is Google OAuth 2.0: a refresh-token trio exchanged at `oauth2.googleapis.c
 
 ## Architecture
 
-- `src/index.ts` — wiring only: config → client → McpServer → register tools → stdio.
+- `src/index.ts` — wiring only: telemetry → config → client → McpServer → register
+  tools → stdio.
 - `src/config.ts` — env → `TagManagerConfig`; throws `ConfigError(message, reason)`,
   never exits. Reason codes (`missing_client_id`, `missing_client_secret`,
   `missing_refresh_token`) are pinned by config.test.ts.
@@ -28,6 +29,12 @@ Auth is Google OAuth 2.0: a refresh-token trio exchanged at `oauth2.googleapis.c
 - `src/builtin-variable-types.ts` — generated from the discovery doc; do not hand-edit.
 - `src/tools/*.ts` — `register<Domain>Tools(server, client)`; handlers are always
   `try { ok(await client...) } catch (e) { fail(e) }`.
+- `src/telemetry.ts` — anonymous usage pings (ids/names/versions only, never the
+  OAuth credentials, account/container ids or arguments; fire-and-forget, must never
+  block or throw; opt-out `ASKADS_TELEMETRY=0`). `startup_failed` is the exception:
+  `sendBlocking` awaits it, because the caller exits right after. Its `reason` is the
+  `ConfigError` code vocabulary (`missing_client_id`, `missing_client_secret`,
+  `missing_refresh_token`) — never a variable's value.
 
 ## Conventions (do not break)
 

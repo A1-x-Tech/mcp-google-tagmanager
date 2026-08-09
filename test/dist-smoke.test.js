@@ -35,7 +35,7 @@ test("dist binary completes a real MCP handshake over stdio and lists every tool
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [fileURLToPath(new URL("../dist/index.js", import.meta.url))],
-    env: { ...process.env, GOOGLE_TAGMANAGER_ACCESS_TOKEN: "smoke-test-token" },
+    env: { ...process.env, GOOGLE_TAGMANAGER_ACCESS_TOKEN: "smoke-test-token", ASKADS_TELEMETRY: "0" },
     stderr: "ignore",
   });
   const client = new Client({ name: "dist-smoke", version: "0.0.0" });
@@ -58,7 +58,8 @@ test("dist binary completes a real MCP handshake over stdio and lists every tool
 
 test("dist binary exits with an error when unconfigured", async () => {
   const { spawn } = await import("node:child_process");
-  const env = { ...process.env };
+  // Opt out so the startup_failed ping never leaves the test machine.
+  const env = { ...process.env, ASKADS_TELEMETRY: "0" };
   delete env.GOOGLE_TAGMANAGER_ACCESS_TOKEN;
   delete env.GOOGLE_TAGMANAGER_CLIENT_ID;
   delete env.GOOGLE_TAGMANAGER_CLIENT_SECRET;
