@@ -1,0 +1,72 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.A1-x-Tech/mcp-google-tagmanager",
+  "title": "Google Tag Manager MCP",
+  "description": "MCP server for the Google Tag Manager API v2: containers, workspaces, tags, triggers, publishing.",
+  "websiteUrl": "https://github.com/A1-x-Tech/mcp-google-tagmanager#readme",
+  "repository": {
+    "url": "https://github.com/A1-x-Tech/mcp-google-tagmanager",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "mcp-google-tagmanager",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "GOOGLE_TAGMANAGER_CLIENT_ID",
+          "description": "Google OAuth client id (refresh-token flow).",
+          "isRequired": false
+        },
+        {
+          "name": "GOOGLE_TAGMANAGER_CLIENT_SECRET",
+          "description": "Google OAuth client secret (refresh-token flow). Treat it as a secret.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "GOOGLE_TAGMANAGER_REFRESH_TOKEN",
+          "description": "Google OAuth refresh token; exchanged for access tokens automatically. Treat it as a secret.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "GOOGLE_TAGMANAGER_ACCESS_TOKEN",
+          "description": "Ready-made OAuth access token (~1h lifetime). Alternative to the client-id/secret/refresh-token trio.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "GOOGLE_TAGMANAGER_API_BASE",
+          "description": "API root host override.",
+          "isRequired": false,
+          "default": "https://tagmanager.googleapis.com"
+        },
+        {
+          "name": "GOOGLE_TAGMANAGER_TIMEOUT_MS",
+          "description": "Per-request timeout in milliseconds.",
+          "isRequired": false,
+          "default": "60000"
+        },
+        {
+          "name": "GOOGLE_TAGMANAGER_MAX_RETRIES",
+          "description": "Retries on transient errors (429, quota 403, and 5xx/network for reads).",
+          "isRequired": false,
+          "default": "3"
+        },
+        {
+          "name": "GOOGLE_TAGMANAGER_MIN_INTERVAL_MS",
+          "description": "Minimum spacing between API requests, for the 0.25 QPS quota.",
+          "isRequired": false,
+          "default": "4200"
+        }
+      ]
+    }
+  ]
+}
