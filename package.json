@@ -1,0 +1,23 @@
+{
+  "name": "mcp-google-tagmanager",
+  "version": "0.0.1",
+  "description": "MCP server for the Google Tag Manager API v2 — accounts, containers, workspaces, tags, triggers and variables. For Claude, Cursor, Codex and other AI clients.",
+  "keywords": ["mcp", "model-context-protocol", "google", "google-tag-manager", "gtm", "tagmanager", "analytics", "claude", "cursor", "codex"],
+  "homepage": "https://github.com/A1-x-Tech/mcp-google-tagmanager#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/A1-x-Tech/mcp-google-tagmanager.git"
+  },
+  "license": "MIT",
+  "author": "gistrec <gistrec@gmail.com>",
+  "type": "module",
+  "bin": {
+    "mcp-google-tagmanager": "index.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
