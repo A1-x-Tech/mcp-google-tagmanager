@@ -23,7 +23,7 @@ clicking through the web UI.
      -e GOOGLE_TAGMANAGER_CLIENT_ID=your_client_id \
      -e GOOGLE_TAGMANAGER_CLIENT_SECRET=your_client_secret \
      -e GOOGLE_TAGMANAGER_REFRESH_TOKEN=your_refresh_token \
-     -- npx -y mcp-google-tagmanager
+     -- npx -y mcp-google-tagmanager@latest
    ```
 
 3. Ask the assistant: "List my GTM containers and show which tags fire on page view."
@@ -84,7 +84,7 @@ claude mcp add google-tagmanager \
   -e GOOGLE_TAGMANAGER_CLIENT_ID=your_client_id \
   -e GOOGLE_TAGMANAGER_CLIENT_SECRET=your_client_secret \
   -e GOOGLE_TAGMANAGER_REFRESH_TOKEN=your_refresh_token \
-  -- npx -y mcp-google-tagmanager
+  -- npx -y mcp-google-tagmanager@latest
 ```
 
 </details>
@@ -99,7 +99,7 @@ claude mcp add google-tagmanager \
   "mcpServers": {
     "google-tagmanager": {
       "command": "npx",
-      "args": ["-y", "mcp-google-tagmanager"],
+      "args": ["-y", "mcp-google-tagmanager@latest"],
       "env": {
         "GOOGLE_TAGMANAGER_CLIENT_ID": "your_client_id",
         "GOOGLE_TAGMANAGER_CLIENT_SECRET": "your_client_secret",
@@ -122,7 +122,7 @@ claude mcp add google-tagmanager \
   "mcpServers": {
     "google-tagmanager": {
       "command": "npx",
-      "args": ["-y", "mcp-google-tagmanager"],
+      "args": ["-y", "mcp-google-tagmanager@latest"],
       "env": {
         "GOOGLE_TAGMANAGER_CLIENT_ID": "your_client_id",
         "GOOGLE_TAGMANAGER_CLIENT_SECRET": "your_client_secret",
