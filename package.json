@@ -1,6 +1,6 @@
 {
   "name": "mcp-google-tagmanager",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "description": "MCP server for the Google Tag Manager API v2 — accounts, containers, workspaces, tags, triggers, variables, versions and publishing. For Claude, Cursor, Codex and other AI clients.",
   "mcpName": "io.github.A1-x-Tech/mcp-google-tagmanager",
   "type": "module",
