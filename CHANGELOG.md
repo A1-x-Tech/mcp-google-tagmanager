@@ -7,6 +7,15 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-08-12
+
+### Added
+
+- Server instructions. The MCP `initialize` response now carries a short briefing for the calling
+  model: what this API is and is not, what it cannot do, and the quotas, retry rules and misleading
+  failures that should change how it is used. That knowledge previously lived only in the README,
+  which a model never reads.
+
 ## [1.0.0] — 2026-08-11
 
 ### Changed
@@ -58,7 +67,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - Replaced the 0.0.1 npm name-reservation stub (plain `index.js`) with the
   TypeScript/ESM implementation (`dist/index.js` binary).
 
-[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.0.1
 [1.0.0]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.0.0
 [0.1.1]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v0.1.0

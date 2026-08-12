@@ -45,6 +45,16 @@ test("dist binary completes a real MCP handshake over stdio and lists every tool
     assert.equal(serverInfo.name, "mcp-google-tagmanager");
     assert.notEqual(serverInfo.version, "0.0.0"); // real version read from package.json
 
+    // The only prose the calling model gets before it picks a tool. An empty
+    // one means the option was dropped somewhere between src and dist.
+    const instructions = client.getInstructions();
+    assert.ok(instructions, "initialize must carry instructions");
+    assert.ok(instructions.length > 300, `instructions look truncated (${instructions.length} chars)`);
+    // Regression guard on the two facts that cost the most to rediscover: GTM
+    // configures tags, it does not report data, and the quota is the bottleneck.
+    assert.match(instructions, /not Google Analytics/);
+    assert.match(instructions, /0\.25 QPS/);
+
     const { tools } = await client.listTools();
     assert.deepEqual(tools.map((t) => t.name).sort(), ALL_TOOLS);
     for (const tool of tools) {

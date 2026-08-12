@@ -14,6 +14,26 @@ import { registerRawTool } from "./tools/raw.js";
 import { registerVersionTools } from "./tools/versions.js";
 import { registerWorkspaceTools } from "./tools/workspaces.js";
 
+/**
+ * The prose the calling model receives in the initialize result, before it sees
+ * a single tool. It carries only what the tool list cannot: what this API is
+ * not, where the live-site danger sits, what the quota costs, and which errors
+ * mean something other than what they say.
+ */
+const INSTRUCTIONS =
+  "Google Tag Manager API v2 configures what a container deploys — tags, triggers, variables, " +
+  "versions. It is not Google Analytics: no visits, conversions or reporting exist here. Tag, " +
+  "trigger and variable edits land in a workspace draft and change nothing on real sites until " +
+  "create_version compiles it; compiling consumes the workspace, so a workspace id from before a " +
+  "create_version is dead. Quota binds everything: 0.25 QPS per project (25 calls/100 s) and 10k a " +
+  "day, so requests are spaced 4.2 s apart by default — auditing a container takes minutes by " +
+  "design; plan the fewest calls, never poll. 429 and quota-403 are already retried with backoff; " +
+  "retrying by hand only burns quota. A 403 is as often a missing OAuth scope (readonly, " +
+  "edit.containers, edit.containerversions and publish are granted separately) as a real permission " +
+  "problem, an empty list_accounts means the authorized Google account sees no GTM account, not " +
+  "that none exists, and with a direct access token (no refresh trio) a 401 after an hour is just " +
+  "expiry. publish_version replaces production on every site with the container.";
+
 /** Reads the package version so the server reports its real version to MCP clients. */
 function readVersion(): string {
   try {
@@ -49,10 +69,15 @@ async function main(): Promise<void> {
   const config = await loadConfigOrExit(telemetry);
   const client = new TagManagerClient(config);
 
-  const server = new McpServer({
-    name: "mcp-google-tagmanager",
-    version: readVersion(),
-  });
+  // `instructions` belongs to the SDK's ServerOptions (2nd argument); passed
+  // next to name/version it would be silently dropped from the initialize result.
+  const server = new McpServer(
+    {
+      name: "mcp-google-tagmanager",
+      version: readVersion(),
+    },
+    { instructions: INSTRUCTIONS },
+  );
 
   instrumentToolCalls(server, telemetry);
   server.server.oninitialized = () => {
