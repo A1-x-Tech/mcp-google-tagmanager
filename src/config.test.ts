@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { ConfigError, loadConfig } from "./config.js";
+import { ConfigError, hasCredentials, loadConfig } from "./config.js";
 
 const ALL_VARS = [
   "GOOGLE_TAGMANAGER_ACCESS_TOKEN",
@@ -44,8 +44,39 @@ function reasonOf(vars: Record<string, string | undefined>): string {
   return caught.reason;
 }
 
-test("with no credentials at all the client id is reported first", () => {
-  assert.equal(reasonOf({}), "missing_client_id");
+/**
+ * Missing credentials used to throw here, which killed the process before the
+ * MCP handshake and left the user with a dead server and no reason. It is now
+ * a survivable state: the server starts degraded and the token provider raises
+ * CredentialsError on the first call instead (pinned in client.test.ts).
+ * Reverting this would restore that dead end.
+ */
+test("no credentials at all is not an error — the config loads with empty fields", () => {
+  withEnv({}, () => {
+    const config = loadConfig();
+    assert.equal(config.accessToken, undefined);
+    assert.equal(config.clientId, undefined);
+    assert.equal(config.clientSecret, undefined);
+    assert.equal(config.refreshToken, undefined);
+    assert.equal(config.apiBase, "https://tagmanager.googleapis.com");
+    assert.equal(hasCredentials(config), false);
+  });
+});
+
+test("an empty string counts as missing, not as a credential", () => {
+  withEnv({ GOOGLE_TAGMANAGER_ACCESS_TOKEN: "", GOOGLE_TAGMANAGER_CLIENT_ID: "" }, () => {
+    const config = loadConfig();
+    assert.equal(config.accessToken, undefined);
+    assert.equal(config.clientId, undefined);
+    assert.equal(hasCredentials(config), false);
+  });
+});
+
+test("a partial setup keeps failing with the first missing member, in the historical order", () => {
+  // At least one credential variable is set, so the operator tried to configure
+  // the server — that is a malformed setup, not an unconfigured one.
+  assert.equal(reasonOf({ GOOGLE_TAGMANAGER_CLIENT_SECRET: "sec" }), "missing_client_id");
+  assert.equal(reasonOf({ GOOGLE_TAGMANAGER_REFRESH_TOKEN: "rt" }), "missing_client_id");
 });
 
 test("each missing member of the refresh trio has its own reason code", () => {
@@ -64,6 +95,7 @@ test("a direct access token alone is a valid configuration", () => {
     const config = loadConfig();
     assert.equal(config.accessToken, "at");
     assert.equal(config.apiBase, "https://tagmanager.googleapis.com");
+    assert.equal(hasCredentials(config), true);
   });
 });
 
@@ -79,6 +111,7 @@ test("the refresh trio alone is a valid configuration", () => {
       assert.equal(config.clientId, "id");
       assert.equal(config.refreshToken, "rt");
       assert.equal(config.accessToken, undefined);
+      assert.equal(hasCredentials(config), true);
     },
   );
 });

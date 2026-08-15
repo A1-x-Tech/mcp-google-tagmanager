@@ -11,7 +11,11 @@
  */
 
 export interface TagManagerConfig {
-  /** Ready-made OAuth access token. Treated as a secret. Optional when the refresh trio is set. */
+  /**
+   * Ready-made OAuth access token. Treated as a secret. Optional: the refresh
+   * trio replaces it, and with no credentials at all the server starts degraded
+   * (every credential field undefined) and fails tool calls with CredentialsError.
+   */
   accessToken?: string;
   /** OAuth client id of the Google Cloud project. */
   clientId?: string;
