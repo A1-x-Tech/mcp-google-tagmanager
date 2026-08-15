@@ -1,98 +1,130 @@
-# Google Tag Manager MCP
+# <img src="./assets/a1-logo.svg" alt="A1" width="40"> Google Tag Manager MCP
+
+**English** | [Русский](./README.ru.md)
 
 [![npm](https://img.shields.io/npm/v/mcp-google-tagmanager)](https://www.npmjs.com/package/mcp-google-tagmanager)
 [![CI](https://github.com/A1-x-Tech/mcp-google-tagmanager/actions/workflows/ci.yml/badge.svg)](https://github.com/A1-x-Tech/mcp-google-tagmanager/actions/workflows/ci.yml)
 [![Glama](https://glama.ai/mcp/servers/A1-x-Tech/mcp-google-tagmanager/badges/score.svg)](https://glama.ai/mcp/servers/A1-x-Tech/mcp-google-tagmanager)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-MCP server for the **Google Tag Manager API v2**: manage containers, workspaces, tags,
-triggers, variables and publishing from Claude, Cursor, Codex and other AI clients in
-natural language.
+**A1 Google Tag Manager MCP** lets an AI app inspect and manage Google Tag Manager containers in plain language. See what fires on a page, work with tags, triggers and variables in a draft workspace, then deliberately compile and publish a version when you are ready.
 
-Ask the assistant to audit a container, wire up a new GA4 tag with its trigger, enable
-built-in variables, compile a version and push it live — the full GTM workflow without
-clicking through the web UI.
+It connects to the Google Tag Manager API v2 through your Google account. The difference from asking an AI to guess a GTM setup is that it works with the actual container, workspace and version you choose.
+
+- **19 tools.** 10 operations only read GTM data; 4 create drafts or change built-in variables; 5 can alter, delete, compile or publish live configuration.
+- **Draft first.** Tags, triggers and variables are created in a workspace. Publishing is a separate, explicitly destructive operation.
+- **Quota-aware.** GTM permits 0.25 requests per second per project; the server spaces requests by at least 4.2 seconds instead of overwhelming the API.
+- **Your Google access.** The server uses your OAuth credentials and requests only the Tag Manager scopes needed for reading, editing, versioning and publishing.
+
+Start with a read-only question:
+
+> Which tags in my containers fire on the page-view trigger?
+
+[Connect the server](#quick-start) · [Explore use cases](#what-you-can-ask-it-to-do) · [Open technical documentation](#technical-documentation)
+
+---
+
+## See it work in a minute
+
+> **You:** List my GTM containers and show which tags fire on page view.
+>
+> **Assistant:** Lists the containers, their workspaces, relevant triggers and the tags attached to them. Nothing changes.
+>
+> **You:** In the Default Workspace of `GTM-ABC123`, prepare a GA4 configuration tag for measurement ID `G-XXXXXXX` on all pages.
+>
+> **Assistant:** Shows the workspace, proposed tag and trigger configuration, then asks for confirmation before creating the draft.
+>
+> **You:** Confirm the draft.
+>
+> **Assistant:** Creates the tag in the workspace. It does not publish the container; compiling and publishing a version remains a separate step.
+
+## Contents
+
+- [Quick start](#quick-start)
+- [What you can ask it to do](#what-you-can-ask-it-to-do)
+- [How GTM changes are connected](#how-gtm-changes-are-connected)
+- [What can change](#what-can-change)
+- [Getting access](#getting-access)
+- [Configuration](#configuration)
+- [Data and telemetry](#data-and-telemetry)
+- [Limits and background work](#limits-and-background-work)
+- [Technical documentation](#technical-documentation)
+- [Support](#support)
 
 ## Quick start
 
-1. [Get OAuth credentials](#getting-credentials) for a Google Cloud project with the Tag Manager API enabled.
-2. Add the server — for example in Claude Code ([other clients](#installation)):
+You need Node.js 20+, a Google account with access to a GTM container and OAuth credentials from a Google Cloud project where the Tag Manager API is enabled.
 
-   ```bash
-   claude mcp add google-tagmanager \
-     -e GOOGLE_TAGMANAGER_CLIENT_ID=your_client_id \
-     -e GOOGLE_TAGMANAGER_CLIENT_SECRET=your_client_secret \
-     -e GOOGLE_TAGMANAGER_REFRESH_TOKEN=your_refresh_token \
-     -- npx -y mcp-google-tagmanager@latest
-   ```
-
-3. Ask the assistant: "List my GTM containers and show which tags fire on page view."
-
-## Tools
-
-| Tool | Description |
-|---|---|
-| `list_accounts` | List all GTM accounts the user can access |
-| `get_account` | Get one account |
-| `list_containers` | List containers of an account (with `GTM-XXXXXX` public ids) |
-| `get_container` | Get one container |
-| `create_container` | Create a container (`web`, `server`, ...) |
-| `list_workspaces` | List workspaces of a container |
-| `get_workspace` | Get one workspace |
-| `create_workspace` | Create a workspace (draft) |
-| `list_tags` | List tags of a workspace |
-| `list_triggers` | List triggers of a workspace |
-| `list_variables` | List user-defined variables of a workspace |
-| `get_resource` | Get any resource by its API path (tag, trigger, variable, version, ...) |
-| `create_entity` | Create a tag, trigger or variable |
-| `update_entity` | Update a tag/trigger/variable (PUT full replace, fingerprint-guarded) |
-| `delete_entity` | Delete a tag/trigger/variable |
-| `manage_built_in_variables` | List / enable / disable built-in variables (full enum from the discovery doc) |
-| `create_version` | Compile a workspace into a container version (⚠️ deletes the workspace) |
-| `publish_version` | Publish a version, get one version, or fetch the live version |
-| `raw_request` | Escape hatch: call any Tag Manager API v2 path directly |
-
-## Built-in rate limiting
-
-The Tag Manager API quota is unusually strict: **0.25 QPS per project** (25 requests per
-100-second sliding window) and 10,000 requests per day. The server handles this for you:
-
-- every API request goes through a serialized queue with a minimum spacing of
-  **4.2 s** between requests (tunable via `GOOGLE_TAGMANAGER_MIN_INTERVAL_MS`);
-- `429` and quota-`403` (`rateLimitExceeded` / `userRateLimitExceeded` / `quotaExceeded`)
-  responses are retried with exponential backoff honoring `Retry-After`;
-- `5xx` and network errors are retried for reads only — a write that may have committed
-  is never replayed.
-
-Big fan-out requests ("list everything in every container") will therefore be slow by
-design — that is the quota, not the server.
-
-## Example prompts
-
-- "Which tags in container GTM-ABC123 fire on the page-view trigger?"
-- "Create a Custom HTML tag in the default workspace that logs to the console, firing on all pages."
-- "Enable the clickText and clickClasses built-in variables in my workspace."
-- "Compile my workspace into a version named 'March release' and publish it."
-
-## Installation
+1. [Prepare Google OAuth access](#getting-access).
+2. Add the server to your AI app.
+3. Start with the read-only question above.
 
 <details open>
-<summary><b>Claude Code</b></summary>
+<summary><strong>Codex</strong></summary>
+
+<br>
+
+**In the app:**
+
+1. Open **Settings → Plugins → MCP servers**.
+2. Select **Add server**.
+3. Add `npx -y mcp-google-tagmanager@latest` and the three environment variables below.
+
+| Variable | Value |
+|---|---|
+| `GOOGLE_TAGMANAGER_CLIENT_ID` | Your Google OAuth client ID |
+| `GOOGLE_TAGMANAGER_CLIENT_SECRET` | Your Google OAuth client secret |
+| `GOOGLE_TAGMANAGER_REFRESH_TOKEN` | Your Google OAuth refresh token |
+
+**From the command line:**
 
 ```bash
-claude mcp add google-tagmanager \
-  -e GOOGLE_TAGMANAGER_CLIENT_ID=your_client_id \
-  -e GOOGLE_TAGMANAGER_CLIENT_SECRET=your_client_secret \
-  -e GOOGLE_TAGMANAGER_REFRESH_TOKEN=your_refresh_token \
+codex mcp add google-tagmanager \
+  --env GOOGLE_TAGMANAGER_CLIENT_ID=your_client_id \
+  --env GOOGLE_TAGMANAGER_CLIENT_SECRET=your_client_secret \
+  --env GOOGLE_TAGMANAGER_REFRESH_TOKEN=your_refresh_token \
   -- npx -y mcp-google-tagmanager@latest
 ```
 
+```bash
+codex mcp list
+```
+
+[Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)
+
 </details>
 
 <details>
-<summary><b>Claude Desktop</b></summary>
+<summary><strong>Claude Code</strong></summary>
 
-`claude_desktop_config.json` — macOS `~/Library/Application Support/Claude/`, Windows `%APPDATA%\Claude\`
+<br>
+
+```bash
+claude mcp add \
+  --env GOOGLE_TAGMANAGER_CLIENT_ID=your_client_id \
+  --env GOOGLE_TAGMANAGER_CLIENT_SECRET=your_client_secret \
+  --env GOOGLE_TAGMANAGER_REFRESH_TOKEN=your_refresh_token \
+  --transport stdio \
+  --scope user \
+  google-tagmanager \
+  -- npx -y mcp-google-tagmanager@latest
+```
+
+```bash
+claude mcp list
+```
+
+[Claude Code MCP documentation](https://code.claude.com/docs/en/mcp)
+
+</details>
+
+<details>
+<summary><strong>Claude Desktop</strong></summary>
+
+<br>
+
+1. Open **Settings → Developer → Edit Config**.
+2. Add this entry to `mcpServers`:
 
 ```json
 {
@@ -110,17 +142,24 @@ claude mcp add google-tagmanager \
 }
 ```
 
+If **Edit Config** is unavailable, edit `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows.
+
+[Claude Desktop MCP documentation](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop)
+
 </details>
 
 <details>
-<summary><b>Cursor</b></summary>
+<summary><strong>Cursor</strong></summary>
 
-`~/.cursor/mcp.json` (or `.cursor/mcp.json` in the project)
+<br>
+
+Add a user-level server to `~/.cursor/mcp.json` on macOS/Linux or `%USERPROFILE%\.cursor\mcp.json` on Windows:
 
 ```json
 {
   "mcpServers": {
     "google-tagmanager": {
+      "type": "stdio",
       "command": "npx",
       "args": ["-y", "mcp-google-tagmanager@latest"],
       "env": {
@@ -133,90 +172,152 @@ claude mcp add google-tagmanager \
 }
 ```
 
+[Cursor MCP documentation](https://cursor.com/docs/mcp)
+
 </details>
 
-For a quick one-off session you can skip the trio and pass a short-lived token directly:
-`GOOGLE_TAGMANAGER_ACCESS_TOKEN=ya29....` (Google access tokens expire after about an
-hour and are not refreshed automatically).
+<details>
+<summary><strong>VS Code</strong></summary>
 
-## Getting credentials
+<br>
 
-The Tag Manager API only supports OAuth 2.0 — there are no API keys for user data. One-time setup:
+Run **MCP: Open User Configuration** from the Command Palette and add:
 
-1. **Create/pick a Google Cloud project** at [console.cloud.google.com](https://console.cloud.google.com)
-   and enable the **Tag Manager API** ([direct link](https://console.cloud.google.com/apis/library/tagmanager.googleapis.com)).
-   Without a registered project the API grants **zero quota** — this step is mandatory.
-2. **Configure the OAuth consent screen** (APIs & Services → OAuth consent screen).
-   For personal use, External + your account as a test user is enough.
-3. **Create an OAuth client** (APIs & Services → Credentials → Create credentials →
-   OAuth client ID → *Desktop app* or *Web application*). Save the **client id** and **client secret**.
-4. **Mint a refresh token.** The easiest path is the
-   [OAuth 2.0 Playground](https://developers.google.com/oauthplayground):
-   - gear icon → check *Use your own OAuth credentials* → paste the client id/secret
-     (for a Web client also add `https://developers.google.com/oauthplayground` to its
-     authorized redirect URIs);
-   - in Step 1 authorize these scopes (space-separated):
+```json
+{
+  "servers": {
+    "google-tagmanager": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "mcp-google-tagmanager@latest"],
+      "env": {
+        "GOOGLE_TAGMANAGER_CLIENT_ID": "${input:gtm_client_id}",
+        "GOOGLE_TAGMANAGER_CLIENT_SECRET": "${input:gtm_client_secret}",
+        "GOOGLE_TAGMANAGER_REFRESH_TOKEN": "${input:gtm_refresh_token}"
+      }
+    }
+  },
+  "inputs": [
+    { "type": "promptString", "id": "gtm_client_id", "description": "Google OAuth client ID" },
+    { "type": "promptString", "id": "gtm_client_secret", "description": "Google OAuth client secret", "password": true },
+    { "type": "promptString", "id": "gtm_refresh_token", "description": "Google OAuth refresh token", "password": true }
+  ]
+}
+```
 
-     ```
-     https://www.googleapis.com/auth/tagmanager.readonly https://www.googleapis.com/auth/tagmanager.edit.containers https://www.googleapis.com/auth/tagmanager.edit.containerversions https://www.googleapis.com/auth/tagmanager.publish
-     ```
+Check it with **MCP: List Servers**.
 
-   - in Step 2 click *Exchange authorization code for tokens* and copy the **refresh token**.
-5. Put the three values into the environment variables above. The server exchanges the
-   refresh token for access tokens automatically and caches them until just before expiry.
+[VS Code MCP documentation](https://code.visualstudio.com/docs/agent-customization/mcp-servers)
 
-> ⚠️ The credentials are stored as plain text in your client's MCP config. Scope the OAuth
-> consent to the four Tag Manager scopes above and nothing else.
->
-> Note the scope split: reading needs `readonly`, editing needs `edit.containers`,
-> `create_version` needs `edit.containerversions`, and publishing needs `publish`.
-> Authorize all four at once or re-consent mid-flow.
+</details>
+
+## What you can ask it to do
+
+### Understand the current setup
+
+- List the GTM accounts and containers I can access.
+- Which tags fire on page view in this workspace?
+- Show the trigger and variable configuration for this tag.
+- Which built-in variables are enabled?
+
+### Prepare tracking changes in a draft
+
+- Create a workspace for the checkout tracking change.
+- Prepare a GA4 tag and a trigger for a specific event.
+- Enable the click variables needed for this trigger.
+- Update this tag after showing me the complete replacement configuration.
+
+### Release a version deliberately
+
+- Compile this workspace into a version named `April release`.
+- Show the compiler errors, if any.
+- Publish version `42` after I confirm the version and its changes.
+
+## How GTM changes are connected
+
+GTM has a clear release path:
+
+1. An **account** contains one or more **containers**.
+2. A container has **workspaces** for draft changes.
+3. Tags, triggers and variables belong to a workspace.
+4. Compiling a workspace creates a **container version** and removes the source workspace. GTM provides a replacement workspace.
+5. Publishing makes a selected container version live.
+
+This server can inspect each step. It does not treat a draft as a release: version creation and publishing are separate operations.
+
+## What can change
+
+| Operation | What happens | Confirmation boundary |
+|---|---|---|
+| List accounts, containers, workspaces, tags, triggers, variables and versions | Reads GTM configuration | No change |
+| Create a container or workspace | Adds a new GTM object | Changes GTM |
+| Create a tag, trigger or variable | Adds a draft object to a workspace | Changes a draft workspace |
+| Enable or disable built-in variables | Changes the workspace configuration | Changes a draft workspace |
+| Update a tag, trigger or variable | Replaces the complete resource, protected by its fingerprint | Potentially destructive |
+| Delete a tag, trigger or variable | Removes the selected object | Destructive |
+| Compile a workspace | Creates a version and deletes the source workspace | Destructive |
+| Publish a version | Makes a selected version live | Destructive |
+| Raw API request | Can call API methods without a dedicated tool | Potentially destructive |
+
+The AI client decides how it asks for confirmation. The server marks read-only, write and destructive operations so the client can distinguish inspection from a real change.
+
+## Getting access
+
+The server uses Google OAuth 2.0. Google Tag Manager does not provide API keys for this user data.
+
+1. Create or select a Google Cloud project and enable the [Tag Manager API](https://console.cloud.google.com/apis/library/tagmanager.googleapis.com). A project without that API enabled receives no quota.
+2. Configure the OAuth consent screen and create an OAuth client. A **Desktop app** client is suitable for local use.
+3. Authorize your Google account and obtain a refresh token. The [OAuth 2.0 Playground](https://developers.google.com/oauthplayground) can do this if you enable **Use your own OAuth credentials**.
+4. Request these scopes together:
+
+   ```text
+   https://www.googleapis.com/auth/tagmanager.readonly
+   https://www.googleapis.com/auth/tagmanager.edit.containers
+   https://www.googleapis.com/auth/tagmanager.edit.containerversions
+   https://www.googleapis.com/auth/tagmanager.publish
+   ```
+
+The scopes are separate: reading, editing, compiling versions and publishing each need their corresponding permission. Treat the client secret and refresh token as passwords.
 
 ## Configuration
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `GOOGLE_TAGMANAGER_CLIENT_ID` | yes* | — | OAuth client id |
-| `GOOGLE_TAGMANAGER_CLIENT_SECRET` | yes* | — | OAuth client secret |
-| `GOOGLE_TAGMANAGER_REFRESH_TOKEN` | yes* | — | OAuth refresh token |
-| `GOOGLE_TAGMANAGER_ACCESS_TOKEN` | no | — | Ready-made access token; replaces the trio for quick sessions |
-| `GOOGLE_TAGMANAGER_API_BASE` | no | `https://tagmanager.googleapis.com` | API root override |
-| `GOOGLE_TAGMANAGER_TIMEOUT_MS` | no | `60000` | Per-request timeout |
-| `GOOGLE_TAGMANAGER_MAX_RETRIES` | no | `3` | Retries on transient errors |
-| `GOOGLE_TAGMANAGER_MIN_INTERVAL_MS` | no | `4200` | Minimum spacing between API requests (0.25 QPS quota) |
+| Variable | Required | Description |
+|---|---|---|
+| `GOOGLE_TAGMANAGER_CLIENT_ID` | Yes* | OAuth client ID. |
+| `GOOGLE_TAGMANAGER_CLIENT_SECRET` | Yes* | OAuth client secret. |
+| `GOOGLE_TAGMANAGER_REFRESH_TOKEN` | Yes* | OAuth refresh token. |
+| `GOOGLE_TAGMANAGER_ACCESS_TOKEN` | Yes* | Short-lived alternative to the OAuth trio. |
+| `GOOGLE_TAGMANAGER_API_BASE` | No | Tag Manager API base URL override. |
+| `GOOGLE_TAGMANAGER_TIMEOUT_MS` | No | Per-request timeout; default `60000` ms. |
+| `GOOGLE_TAGMANAGER_MAX_RETRIES` | No | Maximum retries on temporary failures; default `3`. |
+| `GOOGLE_TAGMANAGER_MIN_INTERVAL_MS` | No | Minimum request spacing; default `4200` ms. |
 
-\* the trio is required unless `GOOGLE_TAGMANAGER_ACCESS_TOKEN` is set.
+\* Provide either the OAuth trio or an access token. Access tokens expire in about an hour and are not refreshed automatically.
 
-## Good to know
+## Data and telemetry
 
-- **`create_version` deletes the source workspace.** The response's `newWorkspacePath`
-  points to the automatically created replacement — the server surfaces it and the tool
-  description warns the model, but keep it in mind when scripting.
-- **`compilerError: true` can arrive with HTTP 200** on `create_version` and publish.
-  The server converts it into a tool error so it is never mistaken for success.
-- **Updates are full replacements** (PUT, not PATCH): `update_entity` expects the complete
-  resource. Fetch with `get_resource`, edit, send back, and pass the `fingerprint` for
-  optimistic-concurrency safety.
-- **All ids are strings**, and every resource carries its own `path` field — echo it back
-  rather than assembling paths by hand.
+The server runs locally and sends GTM API requests and OAuth refresh requests to Google. Its anonymous telemetry contains a random installation ID, package version, AI client and Node.js/operating-system versions, and tool names. It does not send OAuth tokens, GTM data, tool arguments or prompts.
 
-## Requirements
+Disable telemetry for A1 MCP servers with:
 
-- Node.js >= 20
-- A Google account with access to at least one GTM container
+```bash
+ASKADS_TELEMETRY=0
+```
 
-## Documentation
+## Limits and background work
 
-- [docs/TOOLS.md](docs/TOOLS.md) — tool reference
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — architecture and dev commands
-- [docs/PUBLISHING.md](docs/PUBLISHING.md) — release checklist
+- **GTM is rate-limited.** The API allows 0.25 requests per second per project, so the server serializes calls at least 4.2 seconds apart. Broad audits can therefore take time.
+- **Temporary limits are retried carefully.** `429` and Google quota `403` responses use exponential backoff and `Retry-After`. Reads retry after network and `5xx` failures; writes are not replayed after an uncertain failure.
+- **There is no background monitoring.** The server runs only when your AI app calls it. If the app supports scheduled tasks, it can periodically inspect a container or its live version.
+- **A workspace disappears when compiled.** Before calling `create_version`, save anything you need from the workspace and inspect the returned replacement workspace path.
+
+## Technical documentation
+
+- [All tools and inputs](./docs/TOOLS.md)
+- [Development documentation](./docs/DEVELOPMENT.md)
+- [Publishing documentation](./docs/PUBLISHING.md)
 - [Google Tag Manager API v2 reference](https://developers.google.com/tag-platform/tag-manager/api/reference/rest)
 
 ## Support
 
-Questions and issues → [GitHub Issues](https://github.com/A1-x-Tech/mcp-google-tagmanager/issues)
-or Telegram [@gistrec](https://t.me/gistrec).
-
-## License
-
-[MIT](./LICENSE)
+Found a bug or need a scenario? [Create an issue](https://github.com/A1-x-Tech/mcp-google-tagmanager/issues) or write in [Telegram](https://t.me/a1_mcp).
