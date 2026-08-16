@@ -321,3 +321,13 @@ ASKADS_TELEMETRY=0
 ## Support
 
 Found a bug or need a scenario? [Create an issue](https://github.com/A1-x-Tech/mcp-google-tagmanager/issues) or write in [Telegram](https://t.me/a1_mcp).
+
+<br>
+
+<p align="center">
+  <img src="https://github.com/ztemerbekov/a1-yandex-kit-skills/raw/main/assets/images/mona-hifive-yandex-kit-warm.gif" alt="Две Моны дают пять" width="256">
+</p>
+
+<p align="center">
+  Вы дочитали до конца!
+</p>
