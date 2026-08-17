@@ -1,5 +1,7 @@
 # Tool reference
 
+For task-oriented guidance, open the [MCP capability catalog](./capabilities/index.md). This page remains the technical reference for schemas and API responses.
+
 This is a write-capable server for the Google Tag Manager API v2. Reads pass API
 responses through untransformed; writes send the resource JSON you provide. All wire
 mapping (URLs, query params, snake_case → camelCase) lives in the HTTP client — tools

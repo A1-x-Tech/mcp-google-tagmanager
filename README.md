@@ -313,6 +313,7 @@ ASKADS_TELEMETRY=0
 
 ## Technical documentation
 
+- [MCP capability catalog](./docs/capabilities/index.md) — task-oriented pages for every tool.
 - [All tools and inputs](./docs/TOOLS.md)
 - [Development documentation](./docs/DEVELOPMENT.md)
 - [Publishing documentation](./docs/PUBLISHING.md)
