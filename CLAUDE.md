@@ -58,6 +58,8 @@ Auth is Google OAuth 2.0: a refresh-token trio exchanged at `oauth2.googleapis.c
 
 ## Adding a tool
 
+Before changing the tool registry, read [the MCP capability documentation contract](docs/CAPABILITY-DOCUMENTATION.md). Every registered tool must have exactly one task-oriented page in `docs/capabilities/`; update that page, the index, and the coverage test in the same change.
+
 1. Add a typed method to `src/client.ts` (URL + body mapping there).
 2. Register the tool in the matching `src/tools/<domain>.ts` with title, annotations,
    a thorough description (the LLM reads only this) and zod fields with `.describe()`.
