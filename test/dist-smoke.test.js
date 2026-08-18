@@ -66,20 +66,47 @@ test("dist binary completes a real MCP handshake over stdio and lists every tool
   }
 });
 
-test("dist binary exits with an error when unconfigured", async () => {
-  const { spawn } = await import("node:child_process");
-  // Opt out so the startup_failed ping never leaves the test machine.
-  const env = { ...process.env, ASKADS_TELEMETRY: "0" };
-  delete env.GOOGLE_TAGMANAGER_ACCESS_TOKEN;
-  delete env.GOOGLE_TAGMANAGER_CLIENT_ID;
-  delete env.GOOGLE_TAGMANAGER_CLIENT_SECRET;
-  delete env.GOOGLE_TAGMANAGER_REFRESH_TOKEN;
-  const child = spawn(process.execPath, [fileURLToPath(new URL("../dist/index.js", import.meta.url))], { env });
-  let stderr = "";
-  child.stderr.on("data", (chunk) => (stderr += chunk));
-  const code = await new Promise((resolve) => child.on("close", resolve));
-  assert.equal(code, 1);
-  assert.match(stderr, /GOOGLE_TAGMANAGER_CLIENT_ID is required/);
+/**
+ * The degraded-start contract: without any credentials the binary used to
+ * exit(1) before the handshake, leaving the client a dead server and no reason.
+ * It must now start, list every tool, open the instructions with the fix, and
+ * answer a tool call with the actionable error — offline: the CredentialsError
+ * fires before any fetch, so this test never touches the network.
+ */
+test("dist binary starts without credentials: handshake, tool list, actionable call error", async () => {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([key, value]) => value !== undefined && !key.startsWith("GOOGLE_TAGMANAGER_"),
+    ),
+  );
+  env.ASKADS_TELEMETRY = "0"; // keep the suite offline
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [fileURLToPath(new URL("../dist/index.js", import.meta.url))],
+    env,
+    stderr: "pipe",
+  });
+  const client = new Client({ name: "dist-smoke-unconfigured", version: "0.0.0" });
+  await client.connect(transport);
+  try {
+    // The model must read the fix before it picks a tool.
+    const instructions = client.getInstructions() ?? "";
+    assert.match(instructions, /not connected/);
+    assert.match(instructions, /GOOGLE_TAGMANAGER_CLIENT_ID/);
+    assert.match(instructions, /restart/);
+
+    const { tools } = await client.listTools();
+    assert.deepEqual(tools.map((t) => t.name).sort(), ALL_TOOLS);
+
+    // A tool call fails with the exact message instead of killing the server.
+    const result = await client.callTool({ name: "list_accounts", arguments: {} });
+    assert.equal(result.isError, true);
+    const text = result.content.map((c) => c.text ?? "").join(" ");
+    assert.match(text, /GOOGLE_TAGMANAGER_CLIENT_ID is required \(OAuth client id; or set GOOGLE_TAGMANAGER_ACCESS_TOKEN directly\)\./);
+    assert.match(text, /restart the server/);
+  } finally {
+    await client.close();
+  }
 });
 
 test("dist client rejects foreign-origin paths before sending the token", async () => {

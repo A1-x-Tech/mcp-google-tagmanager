@@ -1,7 +1,7 @@
 import type { TagManagerConfig } from "./types.js";
 
 /** Default Google Tag Manager API host. */
-const DEFAULT_BASE = "https://tagmanager.googleapis.com";
+export const DEFAULT_BASE = "https://tagmanager.googleapis.com";
 
 /**
  * GTM enforces 0.25 QPS per project (25 requests / 100 s sliding window), so
@@ -11,9 +11,10 @@ const DEFAULT_BASE = "https://tagmanager.googleapis.com";
 const DEFAULT_MIN_INTERVAL_MS = 4_200;
 
 /**
- * A missing or malformed environment variable. Thrown instead of exiting on the
- * spot so index.ts owns the process exit; `reason` is a machine-readable code
- * (never a variable's value).
+ * A malformed environment variable combination. Thrown instead of exiting on
+ * the spot so index.ts can catch it, report the drop-off and start degraded
+ * instead of dying; `reason` is a machine-readable code (never a variable's
+ * value).
  */
 export class ConfigError extends Error {
   readonly reason: string;
@@ -25,13 +26,46 @@ export class ConfigError extends Error {
   }
 }
 
-function die(message: string, reason: string): never {
-  throw new ConfigError(message, reason);
+/**
+ * What a tool call without credentials reads. The first sentence is the
+ * historical startup error, verbatim (it already names both auth modes) — the
+ * rest exists because credentials come only from the environment, so the fix
+ * is an operator action plus a restart, never a retry.
+ */
+export const MISSING_CREDENTIALS_MESSAGE =
+  "GOOGLE_TAGMANAGER_CLIENT_ID is required (OAuth client id; or set GOOGLE_TAGMANAGER_ACCESS_TOKEN directly). " +
+  "This is not a network failure and retrying will not help: the operator must set these " +
+  "environment variables in the MCP client's server config and restart the server — they are " +
+  "read only at startup.";
+
+/**
+ * Raised when a tool call needs credentials and none were configured. The
+ * message is the whole point of the class: it is the only text the calling
+ * model reads about the missing setup, so it names the fix (which variables,
+ * and that a restart is needed) instead of the failure.
+ */
+export class CredentialsError extends Error {
+  constructor(message: string = MISSING_CREDENTIALS_MESSAGE) {
+    super(message);
+    this.name = "CredentialsError";
+  }
+}
+
+/** True when the config carries usable credentials (a direct access token or the full refresh trio). */
+export function hasCredentials(config: TagManagerConfig): boolean {
+  return Boolean(config.accessToken || (config.clientId && config.clientSecret && config.refreshToken));
 }
 
 /**
- * Builds the client config from environment variables, throwing ConfigError if
- * a required one is missing.
+ * Builds the client config from environment variables.
+ *
+ * Missing credentials are NOT an error here: the server starts anyway and the
+ * token provider raises {@link CredentialsError} on the first tool call, so an
+ * unconfigured install completes the MCP handshake and carries the fix into
+ * the session instead of dying before it with nothing to read. A malformed
+ * setup — some credential variable set but no workable combination — still
+ * throws, keeping the historical per-variable messages and reason codes,
+ * because guessing what the user meant is worse.
  *
  * Two auth modes:
  *   GOOGLE_TAGMANAGER_ACCESS_TOKEN                        ready-made OAuth access token (quick sessions;
@@ -46,23 +80,31 @@ function die(message: string, reason: string): never {
  *   GOOGLE_TAGMANAGER_MIN_INTERVAL_MS   min spacing between API requests (default 4200)
  */
 export function loadConfig(): TagManagerConfig {
-  const accessToken = process.env.GOOGLE_TAGMANAGER_ACCESS_TOKEN;
-  const clientId = process.env.GOOGLE_TAGMANAGER_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_TAGMANAGER_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_TAGMANAGER_REFRESH_TOKEN;
+  // An empty string counts as "not set" — a blank value in an MCP config is
+  // the same operator mistake as a missing one.
+  const accessToken = process.env.GOOGLE_TAGMANAGER_ACCESS_TOKEN || undefined;
+  const clientId = process.env.GOOGLE_TAGMANAGER_CLIENT_ID || undefined;
+  const clientSecret = process.env.GOOGLE_TAGMANAGER_CLIENT_SECRET || undefined;
+  const refreshToken = process.env.GOOGLE_TAGMANAGER_REFRESH_TOKEN || undefined;
 
-  if (!accessToken) {
+  // None of the four set → not an error (degraded start). Some set but no
+  // workable combination → the historical checks in their historical order.
+  const anyProvided = Boolean(accessToken || clientId || clientSecret || refreshToken);
+  if (anyProvided && !accessToken) {
     if (!clientId) {
-      die(
+      throw new ConfigError(
         "GOOGLE_TAGMANAGER_CLIENT_ID is required (OAuth client id; or set GOOGLE_TAGMANAGER_ACCESS_TOKEN directly).",
         "missing_client_id",
       );
     }
     if (!clientSecret) {
-      die("GOOGLE_TAGMANAGER_CLIENT_SECRET is required (OAuth client secret).", "missing_client_secret");
+      throw new ConfigError(
+        "GOOGLE_TAGMANAGER_CLIENT_SECRET is required (OAuth client secret).",
+        "missing_client_secret",
+      );
     }
     if (!refreshToken) {
-      die("GOOGLE_TAGMANAGER_REFRESH_TOKEN is required (OAuth refresh token).", "missing_refresh_token");
+      throw new ConfigError("GOOGLE_TAGMANAGER_REFRESH_TOKEN is required (OAuth refresh token).", "missing_refresh_token");
     }
   }
 

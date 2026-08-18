@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { TagManagerClient } from "./client.js";
+import { CredentialsError, MISSING_CREDENTIALS_MESSAGE } from "./config.js";
 import type { TagManagerConfig } from "./types.js";
 
 const BASE = "https://tagmanager.googleapis.com";
@@ -35,6 +36,39 @@ function mockFetch(handler: (url: string, init: RequestInit) => Response | Promi
 }
 
 const okJson = (body: unknown = { ok: true }) => new Response(JSON.stringify(body), { status: 200 });
+
+/**
+ * The degraded-start contract: a server without credentials still runs, so the
+ * token provider must fail the call itself — with the exact actionable message,
+ * before any fetch. Zero fetch calls proves the error skips the token endpoint
+ * and the retry/backoff loop alike (maxRetries is deliberately non-zero here).
+ */
+test("no credentials at all: CredentialsError with the exact text, fetch never called", async () => {
+  const mock = mockFetch(() => okJson());
+  try {
+    const client = makeClient({ accessToken: undefined, maxRetries: 3 });
+    await assert.rejects(
+      () => client.listAccounts(),
+      (err: unknown) => {
+        assert.ok(err instanceof CredentialsError, "must be a CredentialsError");
+        assert.equal(err.message, MISSING_CREDENTIALS_MESSAGE);
+        // The historical startup error, verbatim — the message is the product.
+        assert.ok(
+          err.message.startsWith(
+            "GOOGLE_TAGMANAGER_CLIENT_ID is required (OAuth client id; " +
+              "or set GOOGLE_TAGMANAGER_ACCESS_TOKEN directly).",
+          ),
+          "the message must open with the historical startup error, verbatim",
+        );
+        assert.match(err.message, /restart the server/, "the fix must mention the restart");
+        return true;
+      },
+    );
+    assert.equal(mock.calls.length, 0, "must not fetch at all — no retries, no token mint");
+  } finally {
+    mock.restore();
+  }
+});
 
 test("GET requests carry the Bearer token and resolve under /tagmanager/v2/", async () => {
   const mock = mockFetch(() => okJson());

@@ -1,3 +1,4 @@
+import { CredentialsError } from "./config.js";
 import type { TagManagerConfig } from "./types.js";
 import { TagManagerError } from "./types.js";
 
@@ -25,6 +26,11 @@ const DEFAULT_LIFETIME_S = 3600;
  *
  * Token-endpoint calls do not count against the GTM API quota, so they bypass
  * the client's rate limiter.
+ *
+ * With no credentials at all (a degraded start), {@link CredentialsError} is
+ * thrown BEFORE any fetch — a missing setup must never enter the retry/backoff
+ * loop or reach the token endpoint, because no amount of retrying mints
+ * credentials.
  */
 export class TokenProvider {
   private cachedToken?: string;
@@ -35,6 +41,9 @@ export class TokenProvider {
 
   async getAccessToken(): Promise<string> {
     if (this.config.accessToken) return this.config.accessToken;
+    if (!this.config.clientId && !this.config.clientSecret && !this.config.refreshToken) {
+      throw new CredentialsError();
+    }
     if (this.cachedToken && Date.now() < this.cachedUntil) return this.cachedToken;
     if (!this.pending) {
       this.pending = this.refresh().finally(() => {
@@ -47,7 +56,8 @@ export class TokenProvider {
   private async refresh(): Promise<string> {
     const { clientId, clientSecret, refreshToken } = this.config;
     if (!clientId || !clientSecret || !refreshToken) {
-      // loadConfig guarantees the trio when accessToken is absent; this guards direct construction.
+      // loadConfig yields either a full trio or no credentials at all (caught
+      // above as CredentialsError); this guards a direct partial construction.
       throw new Error(
         "OAuth refresh requires GOOGLE_TAGMANAGER_CLIENT_ID, GOOGLE_TAGMANAGER_CLIENT_SECRET and GOOGLE_TAGMANAGER_REFRESH_TOKEN.",
       );

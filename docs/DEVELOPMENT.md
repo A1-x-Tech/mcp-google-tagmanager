@@ -46,8 +46,10 @@ test/dist-smoke.test.js     # real MCP handshake with dist/index.js over stdio
 ## Usage telemetry
 
 The server sends anonymous events to `usage.gistrec.cloud` (`server_start` when a
-client connects and `tool_call` with the tool **name**) to count active installs
-and tool demand. An event carries only de-identified technical fields: a random
+client connects to a configured install, `unconfigured_start` when a client connects
+to a server without credentials, `tool_call` with the tool **name**, and
+`startup_failed` with a fixed-vocabulary reason code when the configuration is
+malformed) to count active installs and tool demand. An event carries only de-identified technical fields: a random
 installation id (`~/.config/mcp-google-tagmanager/instance-id`), the package
 version, the AI client's name and version from the MCP handshake, the Node.js
 version and the OS.

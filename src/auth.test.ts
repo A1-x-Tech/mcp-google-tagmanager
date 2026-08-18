@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { TokenProvider } from "./auth.js";
+import { CredentialsError } from "./config.js";
 import type { TagManagerConfig } from "./types.js";
 
 const TRIO: TagManagerConfig = {
@@ -84,6 +85,20 @@ test("concurrent callers share a single in-flight exchange", async () => {
     assert.equal(a, "AT-1");
     assert.equal(b, "AT-1");
     assert.equal(mock.calls.length, 1);
+  } finally {
+    mock.restore();
+  }
+});
+
+test("no credentials at all throws CredentialsError before any token-endpoint call", async () => {
+  const mock = mockTokenFetch([{ body: {} }]);
+  try {
+    const provider = new TokenProvider({ apiBase: "https://tagmanager.googleapis.com" });
+    await assert.rejects(
+      () => provider.getAccessToken(),
+      (err: unknown) => err instanceof CredentialsError,
+    );
+    assert.equal(mock.calls.length, 0, "a missing setup must never reach the token endpoint");
   } finally {
     mock.restore();
   }

@@ -16,13 +16,25 @@ Auth is Google OAuth 2.0: a refresh-token trio exchanged at `oauth2.googleapis.c
 ## Architecture
 
 - `src/index.ts` — wiring only: telemetry → config → client → McpServer → register
-  tools → stdio.
-- `src/config.ts` — env → `TagManagerConfig`; throws `ConfigError(message, reason)`,
-  never exits. Reason codes (`missing_client_id`, `missing_client_secret`,
-  `missing_refresh_token`) are pinned by config.test.ts.
+  tools → stdio. `loadConfigOrDegraded()` catches `ConfigError`, pings `startup_failed`
+  (fire-and-forget) and degrades the config to "no credentials"; an unconfigured start
+  prepends `UNCONFIGURED_PREFIX` — plus `Configuration problem: <message>` when a
+  ConfigError was caught — to the initialize `instructions`, and `oninitialized` sends
+  `server_start` for a configured install or `unconfigured_start` (with the reason)
+  otherwise.
+- `src/config.ts` — env → `TagManagerConfig`; never exits. No credentials at all
+  (empty string = missing) is NOT an error: the fields stay `undefined` and the server
+  starts degraded. A partial setup still throws `ConfigError(message, reason)` with the
+  historical per-variable checks; the reason codes (`missing_client_id`,
+  `missing_client_secret`, `missing_refresh_token`) are pinned by config.test.ts. Also
+  home to `CredentialsError` / `MISSING_CREDENTIALS_MESSAGE` (opens with the historical
+  startup error verbatim, then says to set the variables and restart) and
+  `hasCredentials()`.
 - `src/auth.ts` — `TokenProvider`: refresh-token → access-token exchange, promise-shared,
   cached until expiry − 60 s; direct access token passes through. Token calls bypass the
-  rate limiter (different quota).
+  rate limiter (different quota). With no credentials at all it throws `CredentialsError`
+  BEFORE any fetch — a degraded start must never reach the token endpoint or the retry
+  loop.
 - `src/client.ts` — ALL HTTP: URL building under `/tagmanager/v2/`, Bearer auth,
   SSRF guard, timeout covering body reads, the rate limiter and the retry policy.
   One typed method per endpoint; tools never build URLs.
@@ -31,13 +43,26 @@ Auth is Google OAuth 2.0: a refresh-token trio exchanged at `oauth2.googleapis.c
   `try { ok(await client...) } catch (e) { fail(e) }`.
 - `src/telemetry.ts` — anonymous usage pings (ids/names/versions only, never the
   OAuth credentials, account/container ids or arguments; fire-and-forget, must never
-  block or throw; opt-out `ASKADS_TELEMETRY=0`). `startup_failed` is the exception:
-  `sendBlocking` awaits it, because the caller exits right after. Its `reason` is the
-  `ConfigError` code vocabulary (`missing_client_id`, `missing_client_secret`,
-  `missing_refresh_token`) — never a variable's value.
+  block or throw; opt-out `ASKADS_TELEMETRY=0`). `server_start` means "a usable install
+  started"; `unconfigured_start` is a degraded start and `startup_failed` a malformed
+  config caught at load — both carry a `reason` from the `ConfigError` code vocabulary
+  (`missing_client_id`, `missing_client_secret`, `missing_refresh_token`) — never a
+  variable's value.
 
 ## Conventions (do not break)
 
+- **Never exit because of configuration.** A server that dies before the MCP handshake
+  leaves the user with a red cross and no reason — telemetry across this line of servers
+  showed that state accounted for nearly every unconfigured install, and almost none of
+  them recovered. Missing credentials are a survivable state: start, answer initialize
+  (with the unconfigured prefix in `instructions`) and tools/list, and let the first tool
+  call fail with `CredentialsError` — its message names the fix and says to restart,
+  because credentials come only from the environment. `config.test.ts`, `client.test.ts`
+  and `test/dist-smoke.test.js` pin this.
+- **Credential failures are not transport failures.** `CredentialsError` fires in
+  `TokenProvider.getAccessToken()` before any fetch: it must never enter the retry/backoff
+  loop, reach the token endpoint or burn GTM quota, because no amount of retrying mints
+  credentials. The fix is an operator action (set the env variables) plus a restart.
 - **The rate limiter is a correctness feature.** GTM's quota is 0.25 QPS per project;
   every API request must go through `request()`'s serialized queue. Never add a code
   path that fetches the API directly.
