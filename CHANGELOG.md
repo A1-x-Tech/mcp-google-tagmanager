@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.1.0] — 2026-08-19
 
 ### Changed
 
@@ -86,7 +86,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - Replaced the 0.0.1 npm name-reservation stub (plain `index.js`) with the
   TypeScript/ESM implementation (`dist/index.js` binary).
 
-[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v1.0.1...HEAD
+[1.1.0]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.1.0
 [1.0.1]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.0.1
 [1.0.0]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.0.0
 [0.1.1]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v0.1.0...v0.1.1
