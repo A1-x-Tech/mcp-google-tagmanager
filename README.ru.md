@@ -66,15 +66,17 @@
 
 **В приложении:**
 
-1. Откройте **Settings → Plugins → MCP servers**.
+1. Откройте **Settings → MCP servers**.
 2. Нажмите **Add server**.
-3. Добавьте `npx -y mcp-google-tagmanager@latest` и три переменные окружения ниже.
+3. Выберите **STDIO**, затем укажите `npx -y mcp-google-tagmanager@latest` и три переменные окружения ниже.
 
 | Переменная | Значение |
 |---|---|
 | `GOOGLE_TAGMANAGER_CLIENT_ID` | Ваш Google OAuth client ID |
 | `GOOGLE_TAGMANAGER_CLIENT_SECRET` | Ваш Google OAuth client secret |
 | `GOOGLE_TAGMANAGER_REFRESH_TOKEN` | Ваш Google OAuth refresh token |
+
+4. Нажмите **Save**, затем **Restart**.
 
 **В командной строке:**
 
@@ -123,8 +125,9 @@ claude mcp list
 
 <br>
 
-1. Откройте **Settings → Developer → Edit Config**.
-2. Добавьте запись в `mcpServers`:
+Актуальный официальный путь — **Settings → Extensions**. Для пользовательского desktop extension откройте **Advanced settings → Extension Developer → Install Extension…**, выберите файл `.mcpb` и следуйте подсказкам.
+
+Этот репозиторий сейчас публикует npm-пакет со stdio и пока не содержит `.mcpb`. Поэтому используйте приведённый ниже JSON stdio-конфиг как fallback только в сборках Claude Desktop, где ещё поддерживается локальная конфигурация:
 
 ```json
 {
@@ -142,7 +145,7 @@ claude mcp list
 }
 ```
 
-Если **Edit Config** недоступна, отредактируйте `~/Library/Application Support/Claude/claude_desktop_config.json` на macOS или `%APPDATA%\Claude\claude_desktop_config.json` на Windows.
+В таких сборках сохраните его в `~/Library/Application Support/Claude/claude_desktop_config.json` на macOS или `%APPDATA%\Claude\claude_desktop_config.json` на Windows.
 
 [Документация Claude Desktop MCP](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop)
 

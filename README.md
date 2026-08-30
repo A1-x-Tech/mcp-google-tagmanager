@@ -66,15 +66,17 @@ You need Node.js 20+, a Google account with access to a GTM container and OAuth 
 
 **In the app:**
 
-1. Open **Settings → Plugins → MCP servers**.
+1. Open **Settings → MCP servers**.
 2. Select **Add server**.
-3. Add `npx -y mcp-google-tagmanager@latest` and the three environment variables below.
+3. Choose **STDIO**, then enter `npx -y mcp-google-tagmanager@latest` and the three environment variables below.
 
 | Variable | Value |
 |---|---|
 | `GOOGLE_TAGMANAGER_CLIENT_ID` | Your Google OAuth client ID |
 | `GOOGLE_TAGMANAGER_CLIENT_SECRET` | Your Google OAuth client secret |
 | `GOOGLE_TAGMANAGER_REFRESH_TOKEN` | Your Google OAuth refresh token |
+
+4. Select **Save**, then **Restart**.
 
 **From the command line:**
 
@@ -123,8 +125,9 @@ claude mcp list
 
 <br>
 
-1. Open **Settings → Developer → Edit Config**.
-2. Add this entry to `mcpServers`:
+The current official path is **Settings → Extensions**. For a custom desktop extension, open **Advanced settings → Extension Developer → Install Extension…**, select a `.mcpb` file and follow the prompts.
+
+This repository currently publishes an npm stdio package and does not contain a `.mcpb` bundle. For Claude Desktop builds that still support local configuration, use the following JSON stdio configuration as a fallback:
 
 ```json
 {
@@ -142,7 +145,7 @@ claude mcp list
 }
 ```
 
-If **Edit Config** is unavailable, edit `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows.
+In those builds, save it to `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows.
 
 [Claude Desktop MCP documentation](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop)
 
