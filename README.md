@@ -3,8 +3,8 @@
 **English** | [Русский](./README.ru.md)
 
 [![npm](https://img.shields.io/npm/v/mcp-google-tagmanager)](https://www.npmjs.com/package/mcp-google-tagmanager)
-[![CI](https://github.com/A1-x-Tech/mcp-google-tagmanager/actions/workflows/ci.yml/badge.svg)](https://github.com/A1-x-Tech/mcp-google-tagmanager/actions/workflows/ci.yml)
 [![Glama](https://glama.ai/mcp/servers/A1-x-Tech/mcp-google-tagmanager/badges/score.svg)](https://glama.ai/mcp/servers/A1-x-Tech/mcp-google-tagmanager)
+[![CI](https://github.com/A1-x-Tech/mcp-google-tagmanager/actions/workflows/ci.yml/badge.svg)](https://github.com/A1-x-Tech/mcp-google-tagmanager/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 **A1 Google Tag Manager MCP** lets an AI app inspect and manage Google Tag Manager containers in plain language. See what fires on a page, work with tags, triggers and variables in a draft workspace, then deliberately compile and publish a version when you are ready.
