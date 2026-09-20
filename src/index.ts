@@ -13,6 +13,8 @@ import { registerEntityTools } from "./tools/entities.js";
 import { registerRawTool } from "./tools/raw.js";
 import { registerVersionTools } from "./tools/versions.js";
 import { registerWorkspaceTools } from "./tools/workspaces.js";
+import { authUnconfiguredPrefix, hasAuthToken, registerAuthTools } from "./tools/auth.js";
+import { TokenProvider } from "./auth.js";
 
 /**
  * The prose the calling model receives in the initialize result, before it sees
@@ -40,14 +42,6 @@ const INSTRUCTIONS =
  * rather than with a failed call. There is no in-chat login here: credentials
  * come only from the environment, so the fix is an operator action + restart.
  */
-const UNCONFIGURED_PREFIX =
-  "ATTENTION: Google Tag Manager is not connected yet — no credentials are configured, so every " +
-  "tool call will fail. The operator must set GOOGLE_TAGMANAGER_CLIENT_ID + " +
-  "GOOGLE_TAGMANAGER_CLIENT_SECRET + GOOGLE_TAGMANAGER_REFRESH_TOKEN (recommended; an OAuth " +
-  "client from console.cloud.google.com with the Tag Manager API enabled, plus a refresh token " +
-  "minted at developers.google.com/oauthplayground — see the README's \"Getting credentials\"), " +
-  "or GOOGLE_TAGMANAGER_ACCESS_TOKEN with a short-lived access token, in the MCP client's server " +
-  "config and restart this server — the variables are read only at startup. ";
 
 /** Reads the package version so the server reports its real version to MCP clients. */
 function readVersion(): string {
@@ -91,11 +85,10 @@ async function main(): Promise<void> {
   // missing credentials can be reported; wired to the server before tools register.
   const telemetry = new Telemetry(readVersion());
   const { config, problem } = loadConfigOrDegraded(telemetry);
-  const client = new TagManagerClient(config);
 
   // Decided once, at startup: credentials come only from the environment, so
   // "restart after setting the variables" is the accurate advice to give.
-  const connected = hasCredentials(config);
+  const connected = hasCredentials(config) || hasAuthToken();
 
   // `instructions` belongs to the SDK's ServerOptions (2nd argument); passed
   // next to name/version it would be silently dropped from the initialize result.
@@ -107,7 +100,7 @@ async function main(): Promise<void> {
     {
       instructions: connected
         ? INSTRUCTIONS
-        : UNCONFIGURED_PREFIX + (problem ? `Configuration problem: ${problem.message} ` : "") + INSTRUCTIONS,
+        : authUnconfiguredPrefix() + (problem ? `Configuration problem: ${problem.message} ` : "") + INSTRUCTIONS,
     },
   );
 
@@ -119,6 +112,12 @@ async function main(): Promise<void> {
     if (connected) telemetry.send("server_start");
     else telemetry.send("unconfigured_start", { reason: problem?.reason ?? "missing_client_id" });
   };
+
+  // The auth tools come first so their provider exists before the client:
+  // this server's own TokenProvider falls back to it whenever the
+  // environment carries no credentials (env always wins).
+  const loginProvider = registerAuthTools(server);
+  const client = new TagManagerClient(config, new TokenProvider(config, loginProvider));
 
   registerAccountTools(server, client);
   registerContainerTools(server, client);

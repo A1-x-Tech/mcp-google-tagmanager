@@ -11,7 +11,8 @@
 
 Сервер подключается к Google Tag Manager API v2 через ваш аккаунт Google. В отличие от догадки AI о настройке GTM, он работает с выбранными вами настоящими контейнером, рабочим пространством и версией.
 
-- **19 инструментов.** 10 операций только читают данные GTM; 4 создают черновики или меняют встроенные переменные; 5 могут изменить, удалить, собрать или опубликовать конфигурацию.
+- **25 инструментов.** 10 операций только читают данные GTM; 4 создают черновики или меняют встроенные переменные; 5 могут изменить, удалить, собрать или опубликовать конфигурацию.
+- **Подключение из диалога.** Скажите «подключи Google Tag Manager»: сервер проведёт через создание OAuth-клиента, поймает редирект Google на `127.0.0.1` с PKCE и сам сохранит токены — без конфигов и перезапуска.
 - **Сначала черновик.** Теги, триггеры и переменные создаются в рабочем пространстве. Публикация — отдельная явно разрушительная операция.
 - **С учётом квоты.** GTM разрешает 0,25 запроса в секунду на проект; сервер делает паузу не менее 4,2 секунды между запросами, а не перегружает API.
 - **Ваш доступ Google.** Сервер использует ваши OAuth-данные и запрашивает только scope GTM, нужные для чтения, редактирования, версий и публикации.
@@ -53,10 +54,10 @@
 
 ## Быстрый старт
 
-Нужны Node.js 20+, Google-аккаунт с доступом к контейнеру GTM и OAuth-данные из проекта Google Cloud, в котором включён Tag Manager API.
+Нужны Node.js 20+ и Google-аккаунт. Учётные данные при установке не нужны: сервер подключается прямо в диалоге.
 
-1. [Подготовьте Google OAuth-доступ](#как-получить-доступ).
-2. Добавьте сервер в AI-приложение.
+1. Добавьте сервер в AI-приложение.
+2. Скажите «подключи Google Tag Manager» — ассистент проведёт [создание OAuth-клиента и выдачу доступа](#как-получить-доступ), не трогая конфиги.
 3. Начните с запроса, который только читает данные.
 
 <details open>
@@ -82,9 +83,6 @@
 
 ```bash
 codex mcp add google-tagmanager \
-  --env GOOGLE_TAGMANAGER_CLIENT_ID=your_client_id \
-  --env GOOGLE_TAGMANAGER_CLIENT_SECRET=your_client_secret \
-  --env GOOGLE_TAGMANAGER_REFRESH_TOKEN=your_refresh_token \
   -- npx -y mcp-google-tagmanager@latest
 ```
 
@@ -103,9 +101,6 @@ codex mcp list
 
 ```bash
 claude mcp add \
-  --env GOOGLE_TAGMANAGER_CLIENT_ID=your_client_id \
-  --env GOOGLE_TAGMANAGER_CLIENT_SECRET=your_client_secret \
-  --env GOOGLE_TAGMANAGER_REFRESH_TOKEN=your_refresh_token \
   --transport stdio \
   --scope user \
   google-tagmanager \
@@ -134,12 +129,7 @@ claude mcp list
   "mcpServers": {
     "google-tagmanager": {
       "command": "npx",
-      "args": ["-y", "mcp-google-tagmanager@latest"],
-      "env": {
-        "GOOGLE_TAGMANAGER_CLIENT_ID": "your_client_id",
-        "GOOGLE_TAGMANAGER_CLIENT_SECRET": "your_client_secret",
-        "GOOGLE_TAGMANAGER_REFRESH_TOKEN": "your_refresh_token"
-      }
+      "args": ["-y", "mcp-google-tagmanager@latest"]
     }
   }
 }
@@ -164,12 +154,7 @@ claude mcp list
     "google-tagmanager": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "mcp-google-tagmanager@latest"],
-      "env": {
-        "GOOGLE_TAGMANAGER_CLIENT_ID": "your_client_id",
-        "GOOGLE_TAGMANAGER_CLIENT_SECRET": "your_client_secret",
-        "GOOGLE_TAGMANAGER_REFRESH_TOKEN": "your_refresh_token"
-      }
+      "args": ["-y", "mcp-google-tagmanager@latest"]
     }
   }
 }
@@ -192,19 +177,9 @@ claude mcp list
     "google-tagmanager": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "mcp-google-tagmanager@latest"],
-      "env": {
-        "GOOGLE_TAGMANAGER_CLIENT_ID": "${input:gtm_client_id}",
-        "GOOGLE_TAGMANAGER_CLIENT_SECRET": "${input:gtm_client_secret}",
-        "GOOGLE_TAGMANAGER_REFRESH_TOKEN": "${input:gtm_refresh_token}"
-      }
+      "args": ["-y", "mcp-google-tagmanager@latest"]
     }
-  },
-  "inputs": [
-    { "type": "promptString", "id": "gtm_client_id", "description": "Google OAuth client ID" },
-    { "type": "promptString", "id": "gtm_client_secret", "description": "Google OAuth client secret", "password": true },
-    { "type": "promptString", "id": "gtm_refresh_token", "description": "Google OAuth refresh token", "password": true }
-  ]
+  }
 }
 ```
 
@@ -266,7 +241,20 @@ claude mcp list
 
 ## Как получить доступ
 
-Сервер использует Google OAuth 2.0. Google Tag Manager не предоставляет API-ключи для этих пользовательских данных.
+Google Tag Manager требует OAuth 2.0: одного API-ключа недостаточно. Путей два, и первый не требует править конфигурационные файлы.
+
+### Подключение из диалога (рекомендуемый путь)
+
+Скажите «подключи Google Tag Manager», и ассистент пройдёт флоу вместе с вами:
+
+1. `setup_instructions` выдаёт чек-лист: создать или выбрать проект Google Cloud, включить **Tag Manager API**, настроить consent screen и создать OAuth-клиент типа **Desktop app**.
+2. Скачайте JSON этого клиента («Download JSON») и передайте ассистенту **путь** к файлу — `set_client` сохранит его с правами только для владельца. Секрет через переписку не проходит.
+3. `start_login` возвращает ссылку на согласие Google. Откройте её **на этой же машине** и подтвердите доступ: код возвращается на одноразовый слушатель `127.0.0.1` (PKCE), а не в чат.
+4. `finish_login` меняет код на токены и кладёт их в `~/.config/mcp-google-tagmanager/credentials.json` (права 0600) и проверяет их реальным вызовом Tag Manager API — так невключённый API ловится сразу.
+
+Токены перечитываются на каждый вызов, поэтому подключение действует немедленно — перезапускать AI-приложение не нужно. `auth_status` показывает состояние, `logout` отзывает токен и удаляет его.
+
+### Переменные окружения (CI и автоматические установки)
 
 1. Создайте или выберите проект Google Cloud и включите [Tag Manager API](https://console.cloud.google.com/apis/library/tagmanager.googleapis.com). Проект без включённого API не получает квоту.
 2. Настройте OAuth consent screen и создайте OAuth-клиент. Для локальной работы подходит тип **Desktop app**.
@@ -284,12 +272,15 @@ Scope разделены: для чтения, редактирования, с�
 
 ## Конфигурация
 
+Все переменные необязательные — без единой из них сервер подключается [из диалога](#подключение-из-диалога-рекомендуемый-путь).
+
 | Переменная | Обязательна | Описание |
 |---|---|---|
-| `GOOGLE_TAGMANAGER_CLIENT_ID` | Да* | OAuth client ID. |
-| `GOOGLE_TAGMANAGER_CLIENT_SECRET` | Да* | OAuth client secret. |
-| `GOOGLE_TAGMANAGER_REFRESH_TOKEN` | Да* | OAuth refresh token. |
-| `GOOGLE_TAGMANAGER_ACCESS_TOKEN` | Да* | Короткоживущая альтернатива OAuth-тройке. |
+| `GOOGLE_TAGMANAGER_CLIENT_ID` | Нет* | OAuth client ID. |
+| `GOOGLE_TAGMANAGER_CLIENT_SECRET` | Нет* | OAuth client secret. |
+| `GOOGLE_TAGMANAGER_REFRESH_TOKEN` | Нет* | OAuth refresh token. |
+| `GOOGLE_TAGMANAGER_ACCESS_TOKEN` | Нет* | Короткоживущая альтернатива OAuth-тройке. |
+| `GOOGLE_TAGMANAGER_OAUTH_PORT` | Нет | Фиксированный порт loopback-слушателя для входа из диалога; нужен при пробросе портов по SSH. |
 | `GOOGLE_TAGMANAGER_API_BASE` | Нет | Переопределяет базовый URL Tag Manager API. |
 | `GOOGLE_TAGMANAGER_TIMEOUT_MS` | Нет | Тайм-аут запроса; по умолчанию `60000` мс. |
 | `GOOGLE_TAGMANAGER_MAX_RETRIES` | Нет | Максимум повторов при временных ошибках; по умолчанию `3`. |

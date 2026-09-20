@@ -8,13 +8,13 @@
     "url": "https://github.com/A1-x-Tech/mcp-google-tagmanager",
     "source": "github"
   },
-  "version": "1.1.0",
+  "version": "1.2.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "mcp-google-tagmanager",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "transport": {
         "type": "stdio"
       },
@@ -41,6 +41,12 @@
           "description": "Ready-made OAuth access token (~1h lifetime). Alternative to the client-id/secret/refresh-token trio.",
           "isRequired": false,
           "isSecret": true
+        },
+        {
+          "name": "GOOGLE_TAGMANAGER_OAUTH_PORT",
+          "description": "Fixed port for the loopback listener of the in-chat login (127.0.0.1 + PKCE). Set it when the client runs over SSH port forwarding; otherwise a free port is picked per login.",
+          "isRequired": false,
+          "isSecret": false
         },
         {
           "name": "GOOGLE_TAGMANAGER_API_BASE",

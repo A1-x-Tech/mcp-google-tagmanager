@@ -32,16 +32,36 @@ const DEFAULT_LIFETIME_S = 3600;
  * loop or reach the token endpoint, because no amount of retrying mints
  * credentials.
  */
+/**
+ * The slice of the in-chat login this provider falls back to (structurally
+ * satisfied by `TokenProvider` from @a1-x-tech/mcp-google-auth). Declared here
+ * rather than imported so this module stays testable with a plain object.
+ */
+export interface FallbackTokenSource {
+  getAccessToken(forceRefresh?: boolean): Promise<string>;
+  canRefresh(): boolean;
+}
+
 export class TokenProvider {
   private cachedToken?: string;
   private cachedUntil = 0;
   private pending?: Promise<string>;
 
-  constructor(private readonly config: TagManagerConfig) {}
+  constructor(
+    private readonly config: TagManagerConfig,
+    /**
+     * Consulted only when the environment carries no credentials — env wins, so
+     * existing refresh-trio and access-token installs behave exactly as before.
+     * It re-reads the stored login per call, which is what lets a finish_login
+     * taken mid-session work without a restart.
+     */
+    private readonly fallback?: FallbackTokenSource,
+  ) {}
 
   async getAccessToken(): Promise<string> {
     if (this.config.accessToken) return this.config.accessToken;
     if (!this.config.clientId && !this.config.clientSecret && !this.config.refreshToken) {
+      if (this.fallback) return this.fallback.getAccessToken();
       throw new CredentialsError();
     }
     if (this.cachedToken && Date.now() < this.cachedUntil) return this.cachedToken;

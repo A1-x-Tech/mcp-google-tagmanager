@@ -1,6 +1,7 @@
 import { TokenProvider } from "./auth.js";
 import type { TagManagerConfig } from "./types.js";
 import { isQuotaError, TagManagerError } from "./types.js";
+import { DEFAULT_BASE } from "./config.js";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
@@ -333,4 +334,29 @@ function compact<T extends Record<string, unknown>>(obj: T): T {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * One cheap Tag Manager read, used to verify a fresh in-chat login against the
+ * API the server actually talks to. Standalone (not a client method) because it
+ * runs with a token the client does not hold yet — the login is still being
+ * finished, and it must bypass the client's rate limiter. Throws
+ * TagManagerError exactly like the client does, so the caller can recognize a
+ * disabled-API 403 and give the actionable advice.
+ */
+export async function probeApi(accessToken: string): Promise<void> {
+  const base = (process.env.GOOGLE_TAGMANAGER_API_BASE || DEFAULT_BASE).replace(/\/+$/, "");
+  const res = await fetch(`${base}/tagmanager/v2/accounts`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(10_000),
+  });
+  const text = await res.text();
+  if (res.ok) return;
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = text;
+  }
+  throw new TagManagerError(res.status, data);
 }

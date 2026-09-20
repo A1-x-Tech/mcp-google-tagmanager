@@ -1,6 +1,9 @@
 // Tests the built artifact in dist/ — the exact files that ship to npm.
 // Plain JS on purpose: no tsx loader between the test and the artifact.
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -9,12 +12,19 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 import { TagManagerClient } from "../dist/client.js";
 
+/**
+ * Sorted, because every assertion compares it against a sorted tool list. The
+ * six onboarding tools come from @a1-x-tech/mcp-google-auth, so this list is
+ * also the check that the component is wired into the published binary.
+ */
 const ALL_TOOLS = [
+  "auth_status",
   "create_container",
   "create_entity",
   "create_version",
   "create_workspace",
   "delete_entity",
+  "finish_login",
   "get_account",
   "get_container",
   "get_resource",
@@ -25,13 +35,30 @@ const ALL_TOOLS = [
   "list_triggers",
   "list_variables",
   "list_workspaces",
+  "logout",
   "manage_built_in_variables",
   "publish_version",
   "raw_request",
+  "set_client",
+  "setup_instructions",
+  "start_login",
   "update_entity",
 ];
 
-test("dist binary completes a real MCP handshake over stdio and lists every tool", async () => {
+/**
+ * A throwaway $XDG_CONFIG_HOME for the spawned server. The auth component
+ * re-reads $XDG_CONFIG_HOME/mcp-google-tagmanager/credentials.json per call, so
+ * without this a real login on the developer's machine would make the
+ * "unconfigured" case pass for the wrong reason.
+ */
+function isolatedConfigDir(t) {
+  const dir = mkdtempSync(join(tmpdir(), "mcp-tagmanager-dist-smoke-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  return dir;
+}
+
+
+test("dist binary completes a real MCP handshake over stdio and lists every tool", async (t) => {
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [fileURLToPath(new URL("../dist/index.js", import.meta.url))],
@@ -73,13 +100,14 @@ test("dist binary completes a real MCP handshake over stdio and lists every tool
  * answer a tool call with the actionable error — offline: the CredentialsError
  * fires before any fetch, so this test never touches the network.
  */
-test("dist binary starts without credentials: handshake, tool list, actionable call error", async () => {
+test("dist binary starts without credentials: handshake, tool list, actionable call error", async (t) => {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       ([key, value]) => value !== undefined && !key.startsWith("GOOGLE_TAGMANAGER_"),
     ),
   );
   env.ASKADS_TELEMETRY = "0"; // keep the suite offline
+  env.XDG_CONFIG_HOME = isolatedConfigDir(t); // ignore any real login on this machine
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [fileURLToPath(new URL("../dist/index.js", import.meta.url))],
@@ -91,7 +119,8 @@ test("dist binary starts without credentials: handshake, tool list, actionable c
   try {
     // The model must read the fix before it picks a tool.
     const instructions = client.getInstructions() ?? "";
-    assert.match(instructions, /not connected/);
+    assert.match(instructions, /NOT CONNECTED/);
+    assert.match(instructions, /start_login/);
     assert.match(instructions, /GOOGLE_TAGMANAGER_CLIENT_ID/);
     assert.match(instructions, /restart/);
 
@@ -102,7 +131,11 @@ test("dist binary starts without credentials: handshake, tool list, actionable c
     const result = await client.callTool({ name: "list_accounts", arguments: {} });
     assert.equal(result.isError, true);
     const text = result.content.map((c) => c.text ?? "").join(" ");
-    assert.match(text, /GOOGLE_TAGMANAGER_CLIENT_ID is required \(OAuth client id; or set GOOGLE_TAGMANAGER_ACCESS_TOKEN directly\)\./);
+    // Both fixes must be named: the in-chat login (no restart) and the
+    // environment variables (restart).
+    assert.match(text, /not connected/i);
+    assert.match(text, /start_login/);
+    assert.match(text, /GOOGLE_TAGMANAGER_CLIENT_ID/);
     assert.match(text, /restart the server/);
   } finally {
     await client.close();

@@ -11,7 +11,8 @@
 
 It connects to the Google Tag Manager API v2 through your Google account. The difference from asking an AI to guess a GTM setup is that it works with the actual container, workspace and version you choose.
 
-- **19 tools.** 10 operations only read GTM data; 4 create drafts or change built-in variables; 5 can alter, delete, compile or publish live configuration.
+- **25 tools.** 10 operations only read GTM data; 4 create drafts or change built-in variables; 5 can alter, delete, compile or publish live configuration.
+- **Connects from the conversation.** Say "connect Google Tag Manager": the server walks you through the OAuth client, catches Google's redirect on `127.0.0.1` with PKCE and keeps the tokens itself — no config files, no restart.
 - **Draft first.** Tags, triggers and variables are created in a workspace. Publishing is a separate, explicitly destructive operation.
 - **Quota-aware.** GTM permits 0.25 requests per second per project; the server spaces requests by at least 4.2 seconds instead of overwhelming the API.
 - **Your Google access.** The server uses your OAuth credentials and requests only the Tag Manager scopes needed for reading, editing, versioning and publishing.
@@ -53,10 +54,10 @@ Start with a read-only question:
 
 ## Quick start
 
-You need Node.js 20+, a Google account with access to a GTM container and OAuth credentials from a Google Cloud project where the Tag Manager API is enabled.
+You need Node.js 20+ and a Google account. Credentials are not required at install time — the server connects from the conversation.
 
-1. [Prepare Google OAuth access](#getting-access).
-2. Add the server to your AI app.
+1. Add the server to your AI app.
+2. Say "connect Google Tag Manager": the assistant walks you through [creating the OAuth client and approving access](#getting-access) without editing config files.
 3. Start with the read-only question above.
 
 <details open>
@@ -82,9 +83,6 @@ You need Node.js 20+, a Google account with access to a GTM container and OAuth 
 
 ```bash
 codex mcp add google-tagmanager \
-  --env GOOGLE_TAGMANAGER_CLIENT_ID=your_client_id \
-  --env GOOGLE_TAGMANAGER_CLIENT_SECRET=your_client_secret \
-  --env GOOGLE_TAGMANAGER_REFRESH_TOKEN=your_refresh_token \
   -- npx -y mcp-google-tagmanager@latest
 ```
 
@@ -103,9 +101,6 @@ codex mcp list
 
 ```bash
 claude mcp add \
-  --env GOOGLE_TAGMANAGER_CLIENT_ID=your_client_id \
-  --env GOOGLE_TAGMANAGER_CLIENT_SECRET=your_client_secret \
-  --env GOOGLE_TAGMANAGER_REFRESH_TOKEN=your_refresh_token \
   --transport stdio \
   --scope user \
   google-tagmanager \
@@ -134,12 +129,7 @@ This repository currently publishes an npm stdio package and does not contain a 
   "mcpServers": {
     "google-tagmanager": {
       "command": "npx",
-      "args": ["-y", "mcp-google-tagmanager@latest"],
-      "env": {
-        "GOOGLE_TAGMANAGER_CLIENT_ID": "your_client_id",
-        "GOOGLE_TAGMANAGER_CLIENT_SECRET": "your_client_secret",
-        "GOOGLE_TAGMANAGER_REFRESH_TOKEN": "your_refresh_token"
-      }
+      "args": ["-y", "mcp-google-tagmanager@latest"]
     }
   }
 }
@@ -164,12 +154,7 @@ Add a user-level server to `~/.cursor/mcp.json` on macOS/Linux or `%USERPROFILE%
     "google-tagmanager": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "mcp-google-tagmanager@latest"],
-      "env": {
-        "GOOGLE_TAGMANAGER_CLIENT_ID": "your_client_id",
-        "GOOGLE_TAGMANAGER_CLIENT_SECRET": "your_client_secret",
-        "GOOGLE_TAGMANAGER_REFRESH_TOKEN": "your_refresh_token"
-      }
+      "args": ["-y", "mcp-google-tagmanager@latest"]
     }
   }
 }
@@ -192,19 +177,9 @@ Run **MCP: Open User Configuration** from the Command Palette and add:
     "google-tagmanager": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "mcp-google-tagmanager@latest"],
-      "env": {
-        "GOOGLE_TAGMANAGER_CLIENT_ID": "${input:gtm_client_id}",
-        "GOOGLE_TAGMANAGER_CLIENT_SECRET": "${input:gtm_client_secret}",
-        "GOOGLE_TAGMANAGER_REFRESH_TOKEN": "${input:gtm_refresh_token}"
-      }
+      "args": ["-y", "mcp-google-tagmanager@latest"]
     }
-  },
-  "inputs": [
-    { "type": "promptString", "id": "gtm_client_id", "description": "Google OAuth client ID" },
-    { "type": "promptString", "id": "gtm_client_secret", "description": "Google OAuth client secret", "password": true },
-    { "type": "promptString", "id": "gtm_refresh_token", "description": "Google OAuth refresh token", "password": true }
-  ]
+  }
 }
 ```
 
@@ -266,7 +241,20 @@ The AI client decides how it asks for confirmation. The server marks read-only, 
 
 ## Getting access
 
-The server uses Google OAuth 2.0. Google Tag Manager does not provide API keys for this user data.
+Google Tag Manager requires OAuth 2.0; an API key is not enough. There are two ways in, and the first one needs no configuration files.
+
+### Connect from the chat (recommended)
+
+Say "connect Google Tag Manager" and the assistant runs the flow with you:
+
+1. `setup_instructions` prints the checklist: create or select a Google Cloud project, enable **Tag Manager API**, configure the consent screen and create a **Desktop app** OAuth client.
+2. Download that client's JSON ("Download JSON") and give the assistant its **path** — `set_client` stores it owner-only. The secret never goes through the conversation.
+3. `start_login` returns a Google consent link. Open it **on this machine** and approve; the code comes back to a one-shot listener on `127.0.0.1` (PKCE), never through the chat.
+4. `finish_login` exchanges the code and saves the tokens to `~/.config/mcp-google-tagmanager/credentials.json` (mode 0600) and verifies them with a real Tag Manager API call — so an API that is still switched off is caught right there.
+
+The tokens are re-read on every call, so the connection works immediately — no restart of the AI app. `auth_status` shows what is connected, `logout` revokes and deletes it.
+
+### Environment variables (CI, unattended installs)
 
 1. Create or select a Google Cloud project and enable the [Tag Manager API](https://console.cloud.google.com/apis/library/tagmanager.googleapis.com). A project without that API enabled receives no quota.
 2. Configure the OAuth consent screen and create an OAuth client. A **Desktop app** client is suitable for local use.
@@ -284,12 +272,15 @@ The scopes are separate: reading, editing, compiling versions and publishing eac
 
 ## Configuration
 
+Every variable is optional — with none of them the server connects [from the chat](#connect-from-the-chat-recommended).
+
 | Variable | Required | Description |
 |---|---|---|
-| `GOOGLE_TAGMANAGER_CLIENT_ID` | Yes* | OAuth client ID. |
-| `GOOGLE_TAGMANAGER_CLIENT_SECRET` | Yes* | OAuth client secret. |
-| `GOOGLE_TAGMANAGER_REFRESH_TOKEN` | Yes* | OAuth refresh token. |
-| `GOOGLE_TAGMANAGER_ACCESS_TOKEN` | Yes* | Short-lived alternative to the OAuth trio. |
+| `GOOGLE_TAGMANAGER_CLIENT_ID` | No* | OAuth client ID. |
+| `GOOGLE_TAGMANAGER_CLIENT_SECRET` | No* | OAuth client secret. |
+| `GOOGLE_TAGMANAGER_REFRESH_TOKEN` | No* | OAuth refresh token. |
+| `GOOGLE_TAGMANAGER_ACCESS_TOKEN` | No* | Short-lived alternative to the OAuth trio. |
+| `GOOGLE_TAGMANAGER_OAUTH_PORT` | No | Fixed loopback port for the in-chat login; useful over SSH port forwarding. |
 | `GOOGLE_TAGMANAGER_API_BASE` | No | Tag Manager API base URL override. |
 | `GOOGLE_TAGMANAGER_TIMEOUT_MS` | No | Per-request timeout; default `60000` ms. |
 | `GOOGLE_TAGMANAGER_MAX_RETRIES` | No | Maximum retries on temporary failures; default `3`. |
