@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "google-tagmanager": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-google-tagmanager@latest"
+      ]
+    }
+  }
+}

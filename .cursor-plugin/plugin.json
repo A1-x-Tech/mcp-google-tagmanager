@@ -1,0 +1,26 @@
+{
+  "name": "mcp-google-tagmanager",
+  "displayName": "A1 Google Tag Manager MCP",
+  "description": "MCP server for Google Tag Manager — inspect containers, prepare workspace changes and publish only when ready",
+  "author": {
+    "name": "Aleksandr Kovalko & Zinnur Temerbekov"
+  },
+  "homepage": "https://github.com/A1-x-Tech/mcp-google-tagmanager#readme",
+  "repository": "https://github.com/A1-x-Tech/mcp-google-tagmanager",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "google",
+    "google-tag-manager",
+    "gtm",
+    "tagmanager",
+    "tags",
+    "triggers",
+    "analytics",
+    "claude",
+    "cursor",
+    "codex"
+  ],
+  "logo": "assets/a1-logo.svg"
+}
