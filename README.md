@@ -290,7 +290,7 @@ Every variable is optional — with none of them the server connects [from the c
 
 ## Data and telemetry
 
-The server runs locally and sends GTM API requests and OAuth refresh requests to Google. Its anonymous telemetry contains a random installation ID, package version, AI client and Node.js/operating-system versions, and tool names. It does not send OAuth tokens, GTM data, tool arguments or prompts.
+The server runs locally and sends GTM API requests and OAuth refresh requests to Google. Its anonymous telemetry contains a random installation ID, package version, AI client and Node.js/operating-system versions, and tool names. It does not send OAuth tokens, GTM data, tool arguments or prompts. For each tool call it also sends the outcome and, on failure, an excerpt of the error text with e-mails, addresses, tokens, numbers of 4+ digits and quoted text replaced by `#`; a value from your request can appear in it if the error text contains it.
 
 Disable telemetry for A1 MCP servers with:
 
