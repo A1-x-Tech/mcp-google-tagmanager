@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Telemetry: failures of the login tools (`start_login`, `finish_login`, `set_client`, …) now carry
+  their origin. They used to arrive as `error_other` with no detail, because the auth library
+  rendered them itself; it now uses this server's renderer (`@a1-x-tech/mcp-google-auth` 0.1.2).
+  An `OAuthError` sends its fixed code (`OAuthError invalid_grant`) and counts as `error_auth`,
+  or `error_permission` when the API is switched off in the Cloud project (`accessNotConfigured`).
+
 ## [1.3.1] — 2026-10-31
 
 ### Fixed
@@ -138,6 +148,7 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - Replaced the 0.0.1 npm name-reservation stub (plain `index.js`) with the
   TypeScript/ESM implementation (`dist/index.js` binary).
 
+[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v1.3.1...HEAD
 [1.3.1]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.1
 [1.3.0]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.0
 [1.2.0]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.2.0
