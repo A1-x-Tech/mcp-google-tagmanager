@@ -7,6 +7,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.2] — 2026-11-05
+
 ### Fixed
 
 - Telemetry: failures of the login tools (`start_login`, `finish_login`, `set_client`, …) now carry
@@ -148,7 +150,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - Replaced the 0.0.1 npm name-reservation stub (plain `index.js`) with the
   TypeScript/ESM implementation (`dist/index.js` binary).
 
-[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.2
 [1.3.1]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.1
 [1.3.0]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.0
 [1.2.0]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.2.0
