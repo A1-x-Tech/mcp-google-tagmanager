@@ -7,6 +7,16 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.3] — 2026-11-12
+
+### Fixed
+
+- `create_version` failed with `403 insufficient authentication scopes` for everyone who
+  connected through the in-chat login: the login asked for `tagmanager.edit.containers` and
+  `tagmanager.publish`, but not for `tagmanager.edit.containerversions`, which is the scope
+  that compiles a workspace into a version. The login now requests all three. An existing
+  stored login keeps its old grant: run `start_login` again to pick up the new scope.
+
 ## [1.3.2] — 2026-11-05
 
 ### Fixed
@@ -150,7 +160,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - Replaced the 0.0.1 npm name-reservation stub (plain `index.js`) with the
   TypeScript/ESM implementation (`dist/index.js` binary).
 
-[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v1.3.3...HEAD
+[1.3.3]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.3
 [1.3.2]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.2
 [1.3.1]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.1
 [1.3.0]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.0

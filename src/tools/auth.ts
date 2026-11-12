@@ -13,10 +13,14 @@ import { fail } from "./util.js";
 
 /**
  * The scopes an in-chat login requests (the per-task table lives in
- * docs/TOOLS.md). The component always adds the identity scopes on top. Tag Manager splits editing and publishing: the edit scope covers workspaces, tags and versions, the publish scope is what actually pushes a version live.
+ * docs/TOOLS.md). The component always adds the identity scopes on top. Tag Manager grants
+ * three things separately: edit.containers covers workspaces, tags, triggers and variables,
+ * edit.containerversions is what create_version needs (edit.containers alone gets 403 there),
+ * and publish is what actually pushes a version live.
  */
 export const LOGIN_SCOPES = [
   "https://www.googleapis.com/auth/tagmanager.edit.containers",
+  "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
   "https://www.googleapis.com/auth/tagmanager.publish",
 ];
 

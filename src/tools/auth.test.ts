@@ -69,6 +69,7 @@ test("options pin this server's wiring: env prefix, server name and documented s
   assert.equal(AUTH_OPTIONS.serverName, "tagmanager", "token path must be mcp-google-tagmanager/credentials.json");
   assert.deepEqual(LOGIN_SCOPES, [
     "https://www.googleapis.com/auth/tagmanager.edit.containers",
+    "https://www.googleapis.com/auth/tagmanager.edit.containerversions",
     "https://www.googleapis.com/auth/tagmanager.publish",
   ]);
 });
