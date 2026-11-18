@@ -1,9 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
+import { TokenProvider } from "./auth.js";
 import { TagManagerClient } from "./client.js";
 import { CredentialsError, MISSING_CREDENTIALS_MESSAGE } from "./config.js";
+import { errorDetail } from "./telemetry.js";
+import { LOGIN_SCOPES } from "./tools/auth.js";
 import type { TagManagerConfig } from "./types.js";
+import { TagManagerError } from "./types.js";
 
 const BASE = "https://tagmanager.googleapis.com";
 const V2 = `${BASE}/tagmanager/v2`;
@@ -398,6 +402,105 @@ test("retry attempts honor the throttle spacing too", async () => {
     assert.equal(calls, 2);
     const gap = mock.calls[1].at - mock.calls[0].at;
     assert.ok(gap >= 50, `retry gap too small: ${gap}ms`);
+  } finally {
+    mock.restore();
+  }
+});
+
+/**
+ * A scope-403 names neither the missing scope nor the fix (telemetry, Nov 2026: every
+ * create_version failure was this message, and nobody re-ran the login on their own).
+ * The client appends the fix, and the fix depends on where the token came from.
+ */
+const SCOPE_BODY = JSON.stringify({
+  error: {
+    code: 403,
+    message: "Request had insufficient authentication scopes.",
+    errors: [{ message: "Insufficient Permission", domain: "global", reason: "insufficientPermissions" }],
+    status: "PERMISSION_DENIED",
+    details: [{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", reason: "ACCESS_TOKEN_SCOPE_INSUFFICIENT" }],
+  },
+});
+const API_TEXT =
+  "HTTP 403: [PERMISSION_DENIED] Request had insufficient authentication scopes. (reason: insufficientPermissions)";
+
+async function scopeFailure(client: TagManagerClient): Promise<string> {
+  const mock = mockFetch((url) =>
+    url.startsWith("https://oauth2.googleapis.com/")
+      ? okJson({ access_token: "AT", expires_in: 3600 })
+      : new Response(SCOPE_BODY, { status: 403 }),
+  );
+  try {
+    await client.createVersion("1", "2", "3", {});
+    assert.fail("must reject");
+  } catch (err) {
+    assert.ok(err instanceof TagManagerError);
+    assert.equal(err.status, 403);
+    return err.message;
+  } finally {
+    mock.restore();
+  }
+}
+
+test("scope-403 with a stored login: the error says to run start_login again", async () => {
+  const config: TagManagerConfig = { apiBase: BASE, minIntervalMs: 0, retryBaseMs: 0, maxRetries: 0 };
+  const login = { getAccessToken: async () => "AT", canRefresh: () => true };
+  const message = await scopeFailure(new TagManagerClient(config, new TokenProvider(config, login)));
+  assert.ok(message.startsWith(`${API_TEXT}; `), message);
+  assert.match(message, /Call start_login again/);
+  assert.match(message, /finish_login/);
+});
+
+test("scope-403 with env credentials: the error says to issue a new token, not to log in", async () => {
+  const trio = makeClient({ accessToken: undefined, clientId: "id", clientSecret: "sec", refreshToken: "rt" });
+  const direct = makeClient();
+  for (const [client, variable] of [
+    [trio, "GOOGLE_TAGMANAGER_REFRESH_TOKEN"],
+    [direct, "GOOGLE_TAGMANAGER_ACCESS_TOKEN"],
+  ] as const) {
+    const message = await scopeFailure(client);
+    assert.ok(message.startsWith(`${API_TEXT}; `), message);
+    assert.ok(message.includes(variable), message);
+    assert.match(message, /start_login will not help/);
+    // Every scope the in-chat login asks for is named, so the two paths cannot drift apart.
+    for (const scope of LOGIN_SCOPES) {
+      assert.ok(message.includes(scope.replace("https://www.googleapis.com/auth/", "")), scope);
+    }
+  }
+});
+
+test("the scope hint stays out of the telemetry excerpt", async () => {
+  const message = await scopeFailure(makeClient());
+  assert.equal(errorDetail(`Error: ${message}`), errorDetail(`Error: ${API_TEXT}`));
+});
+
+test("a permission 403 that is not about scopes gets no hint", async () => {
+  const mock = mockFetch(
+    () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            code: 403,
+            message: "The caller does not have permission",
+            errors: [{ reason: "forbidden" }],
+            status: "PERMISSION_DENIED",
+          },
+        }),
+        { status: 403 },
+      ),
+  );
+  try {
+    await assert.rejects(
+      () => makeClient().listAccounts(),
+      (err: unknown) => {
+        assert.ok(err instanceof TagManagerError);
+        assert.equal(
+          err.message,
+          "HTTP 403: [PERMISSION_DENIED] The caller does not have permission (reason: forbidden)",
+        );
+        return true;
+      },
+    );
   } finally {
     mock.restore();
   }
