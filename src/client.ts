@@ -1,6 +1,6 @@
-import { TokenProvider } from "./auth.js";
+import { TokenProvider, type TokenSource } from "./auth.js";
 import type { TagManagerConfig } from "./types.js";
-import { isQuotaError, TagManagerError } from "./types.js";
+import { isQuotaError, isScopeError, TagManagerError } from "./types.js";
 import { DEFAULT_BASE } from "./config.js";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
@@ -180,7 +180,10 @@ export class TagManagerClient {
         continue;
       }
 
-      if (!res.ok) throw new TagManagerError(res.status, data);
+      if (!res.ok) {
+        const hint = res.status === 403 && isScopeError(data) ? SCOPE_HINTS[this.tokens.source()] : undefined;
+        throw new TagManagerError(res.status, data, hint);
+      }
       return data as T;
     }
   }
@@ -326,6 +329,33 @@ export class TagManagerClient {
     return this.request("GET", `accounts/${accountId}/containers/${containerId}/versions:live`);
   }
 }
+
+const SCOPES_NEEDED =
+  "tagmanager.edit.containers, tagmanager.edit.containerversions and tagmanager.publish " +
+  "(Google grants each one separately)";
+
+/**
+ * What to do about "insufficient authentication scopes", by token source. The API's
+ * message names neither the scope nor the fix, and the fix differs: a stored in-chat
+ * login is repaired by logging in again (a login made before 1.3.3 never asked for
+ * edit.containerversions, and the consent screen lets the user untick a permission),
+ * while environment credentials outrank a stored login, so there only a new token helps.
+ */
+export const SCOPE_HINTS: Record<TokenSource, string | undefined> = {
+  login:
+    "the stored login was granted without an OAuth scope this call needs. Call start_login again, have the " +
+    "user approve every permission on the Google consent screen, then finish_login and retry this call — " +
+    "no restart is needed",
+  refresh_token:
+    "the refresh token in GOOGLE_TAGMANAGER_REFRESH_TOKEN was issued without an OAuth scope this call needs. " +
+    `Issue a new one that includes ${SCOPES_NEEDED}, set it and restart the server. start_login will not ` +
+    "help: environment credentials take priority over a stored login",
+  access_token:
+    "the access token in GOOGLE_TAGMANAGER_ACCESS_TOKEN was issued without an OAuth scope this call needs. " +
+    `Issue a new one that includes ${SCOPES_NEEDED}, set it and restart the server. start_login will not ` +
+    "help: environment credentials take priority over a stored login",
+  none: undefined,
+};
 
 /** Drops keys whose value is `undefined` so they are not sent to the API. */
 function compact<T extends Record<string, unknown>>(obj: T): T {

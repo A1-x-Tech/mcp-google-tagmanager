@@ -47,8 +47,13 @@ export class TagManagerError extends Error {
   readonly status: number;
   readonly body?: unknown;
 
-  constructor(status: number, body: unknown) {
-    super(`HTTP ${status}: ${formatErrorBody(body)}`);
+  /**
+   * `hint` is this server's own advice on top of the API's words (what to do about a
+   * missing OAuth scope). It goes after a "; " so the API's text stays intact and the
+   * telemetry excerpt, which stops at ";", stays the API's own message.
+   */
+  constructor(status: number, body: unknown, hint?: string) {
+    super(`HTTP ${status}: ${formatErrorBody(body)}${hint ? `; ${hint}` : ""}`);
     this.name = "TagManagerError";
     this.status = status;
     this.body = body;
@@ -112,4 +117,31 @@ export function isQuotaError(body: unknown): boolean {
   const quotaReasons = ["rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded", "dailyLimitExceeded"];
   if (reasons.some((r) => quotaReasons.includes(r))) return true;
   return typeof e.message === "string" && /quota|rate limit/i.test(e.message);
+}
+
+/**
+ * True when a 403 body says the access token lacks an OAuth scope, as opposed to
+ * the Google account lacking a GTM permission. Google marks it with the ErrorInfo
+ * reason ACCESS_TOKEN_SCOPE_INSUFFICIENT in `error.details` and the fixed message
+ * "Request had insufficient authentication scopes."; either one is enough. The
+ * legacy `errors[].reason` (insufficientPermissions) is deliberately not matched:
+ * it is too close to a genuine permission denial to hang re-login advice on.
+ */
+export function isScopeError(body: unknown): boolean {
+  if (!body || typeof body !== "object") return false;
+  const err = (body as Record<string, unknown>).error;
+  if (!err || typeof err !== "object") return false;
+  const e = err as Record<string, unknown>;
+  if (
+    Array.isArray(e.details) &&
+    e.details.some(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        (item as Record<string, unknown>).reason === "ACCESS_TOKEN_SCOPE_INSUFFICIENT",
+    )
+  ) {
+    return true;
+  }
+  return typeof e.message === "string" && /insufficient authentication scopes/i.test(e.message);
 }

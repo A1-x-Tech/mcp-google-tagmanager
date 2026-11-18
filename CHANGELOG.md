@@ -7,6 +7,19 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.4] — 2026-11-18
+
+### Fixed
+
+- A `403 Request had insufficient authentication scopes` now says what to do about it. The API's
+  message names neither the missing scope nor the fix, so `create_version` kept failing for
+  installs that had logged in before 1.3.3: the stored login still carried the old grant and
+  nothing told the model to renew it. The error now ends with the fix for the token in use:
+  with a stored in-chat login — call `start_login` again and approve every permission (no
+  restart); with `GOOGLE_TAGMANAGER_REFRESH_TOKEN` or `GOOGLE_TAGMANAGER_ACCESS_TOKEN` — issue a
+  new token with all three scopes and restart, since environment credentials outrank a stored
+  login and `start_login` would not help. Other 403s are unchanged.
+
 ## [1.3.3] — 2026-11-12
 
 ### Fixed
@@ -160,7 +173,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/).
 - Replaced the 0.0.1 npm name-reservation stub (plain `index.js`) with the
   TypeScript/ESM implementation (`dist/index.js` binary).
 
-[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v1.3.3...HEAD
+[Unreleased]: https://github.com/A1-x-Tech/mcp-google-tagmanager/compare/v1.3.4...HEAD
+[1.3.4]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.4
 [1.3.3]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.3
 [1.3.2]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.2
 [1.3.1]: https://github.com/A1-x-Tech/mcp-google-tagmanager/releases/tag/v1.3.1

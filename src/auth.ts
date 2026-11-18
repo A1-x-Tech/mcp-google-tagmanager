@@ -42,6 +42,9 @@ export interface FallbackTokenSource {
   canRefresh(): boolean;
 }
 
+/** Where the access token of an API call comes from; decides what fixes a missing scope. */
+export type TokenSource = "access_token" | "refresh_token" | "login" | "none";
+
 export class TokenProvider {
   private cachedToken?: string;
   private cachedUntil = 0;
@@ -57,6 +60,15 @@ export class TokenProvider {
      */
     private readonly fallback?: FallbackTokenSource,
   ) {}
+
+  /** Mirrors the priority of {@link getAccessToken}: env access token, env refresh trio, stored login. */
+  source(): TokenSource {
+    if (this.config.accessToken) return "access_token";
+    if (!this.config.clientId && !this.config.clientSecret && !this.config.refreshToken) {
+      return this.fallback ? "login" : "none";
+    }
+    return "refresh_token";
+  }
 
   async getAccessToken(): Promise<string> {
     if (this.config.accessToken) return this.config.accessToken;
