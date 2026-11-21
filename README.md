@@ -57,7 +57,7 @@ Start with a read-only question:
 You need Node.js 20+ and a Google account. Credentials are not required at install time — the server connects from the conversation.
 
 1. Add the server to your AI app.
-2. Say "connect Google Tag Manager": the assistant walks you through [creating the OAuth client and approving access](#getting-access) without editing config files.
+2. Say "connect Google Tag Manager": the assistant gives you a Google sign-in link — [no Google Cloud project or OAuth client to create](#getting-access).
 3. Start with the read-only question above.
 
 <details open>
@@ -69,14 +69,7 @@ You need Node.js 20+ and a Google account. Credentials are not required at insta
 
 1. Open **Settings → MCP servers**.
 2. Select **Add server**.
-3. Choose **STDIO**, then enter `npx -y mcp-google-tagmanager@latest` and the three environment variables below.
-
-| Variable | Value |
-|---|---|
-| `GOOGLE_TAGMANAGER_CLIENT_ID` | Your Google OAuth client ID |
-| `GOOGLE_TAGMANAGER_CLIENT_SECRET` | Your Google OAuth client secret |
-| `GOOGLE_TAGMANAGER_REFRESH_TOKEN` | Your Google OAuth refresh token |
-
+3. Choose **STDIO**, then enter `npx -y mcp-google-tagmanager@latest`.
 4. Select **Save**, then **Restart**.
 
 **From the command line:**
@@ -245,12 +238,20 @@ Google Tag Manager requires OAuth 2.0; an API key is not enough. There are two w
 
 ### Connect from the chat (recommended)
 
-Say "connect Google Tag Manager" and the assistant runs the flow with you:
+Say "connect Google Tag Manager". The server ships with a built-in OAuth client, so there is no Google Cloud project or OAuth client to create:
+
+1. `start_login` returns a Google consent link. Open it **on this machine** and approve; the code comes back to a one-shot listener on `127.0.0.1` (PKCE), never through the chat.
+2. `finish_login` exchanges the code, saves the tokens to `~/.config/mcp-google-tagmanager/credentials.json` (mode 0600) and verifies them with a real Tag Manager API call — so an API that is still switched off is caught right there.
+
+Google may show a **"Google hasn't verified this app"** screen while the app's verification is in progress: choose **Advanced → Go to A1 MCP**. The built-in client only identifies the app to Google — the tokens are issued to and stored on your machine, and A1 never receives them.
+
+#### Use your own OAuth client
+
+The built-in client and its Google API quota are shared by everyone who uses it. Bring your own client to get a quota of your own, or when a Google Workspace admin blocks third-party apps:
 
 1. `setup_instructions` prints the checklist: create or select a Google Cloud project, enable **Tag Manager API**, configure the consent screen and create a **Desktop app** OAuth client.
-2. Download that client's JSON ("Download JSON") and give the assistant its **path** — `set_client` stores it owner-only. The secret never goes through the conversation.
-3. `start_login` returns a Google consent link. Open it **on this machine** and approve; the code comes back to a one-shot listener on `127.0.0.1` (PKCE), never through the chat.
-4. `finish_login` exchanges the code and saves the tokens to `~/.config/mcp-google-tagmanager/credentials.json` (mode 0600) and verifies them with a real Tag Manager API call — so an API that is still switched off is caught right there.
+2. Download that client's JSON ("Download JSON") and give the assistant its **path** — `set_client` stores it owner-only. The secret never goes through the conversation. From then on it takes priority over the built-in client.
+3. Run `start_login` and `finish_login` again.
 
 The tokens are re-read on every call, so the connection works immediately — no restart of the AI app. `auth_status` shows what is connected, `logout` revokes and deletes it.
 
@@ -286,7 +287,7 @@ Every variable is optional — with none of them the server connects [from the c
 | `GOOGLE_TAGMANAGER_MAX_RETRIES` | No | Maximum retries on temporary failures; default `3`. |
 | `GOOGLE_TAGMANAGER_MIN_INTERVAL_MS` | No | Minimum request spacing; default `4200` ms. |
 
-\* Provide either the OAuth trio or an access token. Access tokens expire in about an hour and are not refreshed automatically.
+\* Only for a setup without the in-chat login: provide either the OAuth trio or an access token. Access tokens expire in about an hour and are not refreshed automatically.
 
 ## Data and telemetry
 
